@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatAGNumber, generateAGRange, calculateGPA } from "@/lib/gpaCalculator";
+import { formatAGNumber, generateAGRange, calculateGPA, parseAGNumber } from "@/lib/gpaCalculator";
 import type { StudentResult, Subject } from "@/types/result";
 import { uafScraper } from "@/lib/uaf-scraper";
 import { StudentDetailModal } from "@/components/results/StudentDetailModal";
@@ -37,21 +37,21 @@ export default function ClassResult() {
     const endNum = parseInt(endAG.number);
     const agList = generateAGRange(startAG.year, startNum, startAG.year, endNum);
 
-    const fetchedResults: StudentResult[] = [];
-
-    for (let i = 0; i < agList.length; i++) {
-      try {
-        const ag = agList[i];
-        const result = await uafScraper.getResult(ag);
-        fetchedResults.push(result);
-        setResults(prev => [...prev, result]);
-      } catch (error) {
-        console.warn(`Failed to fetch ${agList[i]}:`, error);
+    await uafScraper.getBatchResults(agList, (prog, result) => {
+      setProgress(prog);
+      if (result) {
+        setResults(prev => {
+          const newResults = [...prev, result];
+          return newResults.sort((a, b) => {
+            const agA = parseAGNumber(a.registrationNo);
+            const agB = parseAGNumber(b.registrationNo);
+            if (!agA || !agB) return 0;
+            if (agA.year !== agB.year) return parseInt(agA.year) - parseInt(agB.year);
+            return parseInt(agA.number) - parseInt(agB.number);
+          });
+        });
       }
-      setProgress(((i + 1) / agList.length) * 100);
-      // Small delay to be nice to the server
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
+    });
 
     setLoading(false);
   };
@@ -63,20 +63,21 @@ export default function ClassResult() {
     setProgress(0);
     setResults([]);
 
-    const fetchedResults: StudentResult[] = [];
-
-    for (let i = 0; i < excelAGs.length; i++) {
-      try {
-        const ag = excelAGs[i];
-        const result = await uafScraper.getResult(ag);
-        fetchedResults.push(result);
-        setResults(prev => [...prev, result]);
-      } catch (error) {
-        console.warn(`Failed to fetch ${excelAGs[i]}:`, error);
+    await uafScraper.getBatchResults(excelAGs, (prog, result) => {
+      setProgress(prog);
+      if (result) {
+        setResults(prev => {
+          const newResults = [...prev, result];
+          return newResults.sort((a, b) => {
+            const agA = parseAGNumber(a.registrationNo);
+            const agB = parseAGNumber(b.registrationNo);
+            if (!agA || !agB) return 0;
+            if (agA.year !== agB.year) return parseInt(agA.year) - parseInt(agB.year);
+            return parseInt(agA.number) - parseInt(agB.number);
+          });
+        });
       }
-      setProgress(((i + 1) / excelAGs.length) * 100);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
+    });
 
     setLoading(false);
   };

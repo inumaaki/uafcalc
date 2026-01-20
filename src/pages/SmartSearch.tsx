@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, Download, Filter, BookOpen } from "lucide-react";
+import { Search, Loader2, Download, Filter, BookOpen, XCircle } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { AGNumberInput } from "@/components/ui/AGNumberInput";
 import { Button } from "@/components/ui/button";
@@ -8,15 +8,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { generateAGRange } from "@/lib/gpaCalculator";
+import { generateAGRange, parseAGNumber } from "@/lib/gpaCalculator";
 import type { StudentResult, Subject } from "@/types/result";
 import { uafScraper } from "@/lib/uaf-scraper";
 import { StudentDetailModal } from "@/components/results/StudentDetailModal";
+import { cn } from "@/lib/utils";
 
 export default function SmartSearch() {
     const [startAG, setStartAG] = useState({ year: "", number: "" });
     const [endAG, setEndAG] = useState({ year: "", number: "" });
     const [courseFilter, setCourseFilter] = useState("");
+    const [gradeFilter, setGradeFilter] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<StudentResult[]>([]);
     const [progress, setProgress] = useState(0);
@@ -28,22 +30,27 @@ export default function SmartSearch() {
         setLoading(true);
         setProgress(0);
         setResults([]);
+        setGradeFilter(null); // Reset filter on new search
 
         const startNum = parseInt(startAG.number);
         const endNum = parseInt(endAG.number);
         const agList = generateAGRange(startAG.year, startNum, startAG.year, endNum);
 
-        for (let i = 0; i < agList.length; i++) {
-            try {
-                const ag = agList[i];
-                const result = await uafScraper.getResult(ag);
-                setResults(prev => [...prev, result]);
-            } catch (error) {
-                console.warn(`Failed to fetch ${agList[i]}:`, error);
+        await uafScraper.getBatchResults(agList, (prog, result) => {
+            setProgress(prog);
+            if (result) {
+                setResults(prev => {
+                    const newResults = [...prev, result];
+                    return newResults.sort((a, b) => {
+                        const agA = parseAGNumber(a.registrationNo);
+                        const agB = parseAGNumber(b.registrationNo);
+                        if (!agA || !agB) return 0;
+                        if (agA.year !== agB.year) return parseInt(agA.year) - parseInt(agB.year);
+                        return parseInt(agA.number) - parseInt(agB.number);
+                    });
+                });
             }
-            setProgress(((i + 1) / agList.length) * 100);
-            await new Promise((resolve) => setTimeout(resolve, 300)); // Slightly faster than class result
-        }
+        });
 
         setLoading(false);
     };
@@ -54,30 +61,57 @@ export default function SmartSearch() {
         endAG.year.length === 4 &&
         endAG.number.length >= 1;
 
-    // Filter Logic
-    const filteredResults = results.map(student => {
-        if (!courseFilter) return { student, match: null };
+    // 1. Filter by Course
+    const courseFilteredResults = useMemo(() => {
+        return results.map(student => {
+            if (!courseFilter) return { student, match: null };
 
-        const filterLower = courseFilter.toLowerCase();
-        // Find the specific subject in all semesters
-        let foundSubject: Subject | null = null;
+            const filterLower = courseFilter.toLowerCase();
+            let foundSubject: Subject | null = null;
 
-        for (const sem of student.semesters) {
-            const match = sem.subjects.find(sub =>
-                sub.name.toLowerCase().includes(filterLower) ||
-                sub.code.toLowerCase().includes(filterLower)
-            );
-            if (match) {
-                foundSubject = match;
-                break; // Return first match (usually unique per student unless failed/repeated)
+            // Search all semesters
+            for (const sem of student.semesters) {
+                const match = sem.subjects.find(sub =>
+                    sub.name.toLowerCase().includes(filterLower) ||
+                    sub.code.toLowerCase().includes(filterLower)
+                );
+                if (match) {
+                    foundSubject = match;
+                    break;
+                }
             }
-        }
+            return foundSubject ? { student, match: foundSubject } : null;
+        }).filter(item => item !== null) as { student: StudentResult, match: Subject | null }[];
+    }, [results, courseFilter]);
 
-        return foundSubject ? { student, match: foundSubject } : null;
-    }).filter(item => item !== null) as { student: StudentResult, match: Subject | null }[];
+    // 2. Compute Stats (based on course filtered results)
+    const stats = useMemo(() => {
+        if (!courseFilter) return null;
+        const counts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+        courseFilteredResults.forEach(({ match }) => {
+            if (match) {
+                // Normalize grade (remove +/-, map P to null or ignore?)
+                // Assuming standard grades A, B, C, D, F.
+                // If grade is "A+" treat as "A"? Or keep discrete? 
+                // Let's use the first letter for grouping (Simple A, B, C..) or exact matches?
+                // User asked for "A, B, C, D, F".
+                const grade = match.grade.charAt(0).toUpperCase();
+                if (counts[grade] !== undefined) counts[grade]++;
+            }
+        });
+        return counts;
+    }, [courseFilteredResults, courseFilter]);
 
-    // If no filter, show all (mapped to null match)
-    const displayData = courseFilter ? filteredResults : results.map(r => ({ student: r, match: null }));
+    // 3. Filter by Grade
+    const displayData = useMemo(() => {
+        if (!gradeFilter) return courseFilteredResults;
+        return courseFilteredResults.filter(({ match }) => {
+            if (!match) return false;
+            // Match first letter to cover A+, A- etc if they exist, or exact match?
+            // The stats grouped by first letter, so filter should too.
+            return match.grade.charAt(0).toUpperCase() === gradeFilter;
+        });
+    }, [courseFilteredResults, gradeFilter]);
 
     const exportCSV = () => {
         if (displayData.length === 0) return;
@@ -133,14 +167,14 @@ export default function SmartSearch() {
                         <div className="flex flex-col md:flex-row items-center md:items-end justify-center gap-4">
                             <div className="flex flex-col items-center gap-1">
                                 <span className="text-xs font-medium text-muted-foreground">Start AG</span>
-                                <AGNumberInput value={startAG} onChange={setStartAG} className="w-[290px] md:w-auto" />
+                                <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleFetch} className="w-[290px] md:w-auto" />
                             </div>
                             <div className="h-11 flex items-center justify-center hidden md:flex">
                                 <span className="text-2xl font-bold text-muted-foreground pb-1">→</span>
                             </div>
                             <div className="flex flex-col items-center gap-1">
                                 <span className="text-xs font-medium text-muted-foreground">End AG</span>
-                                <AGNumberInput value={endAG} onChange={setEndAG} className="w-[290px] md:w-auto" />
+                                <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleFetch} className="w-[290px] md:w-auto" />
                             </div>
                         </div>
 
@@ -152,7 +186,11 @@ export default function SmartSearch() {
                             <Input
                                 placeholder="Filter by Course (e.g., 'CSC-101' or 'Database')"
                                 value={courseFilter}
-                                onChange={(e) => setCourseFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setCourseFilter(e.target.value);
+                                    setGradeFilter(null); // Reset grade filter when course changes
+                                }}
+                                onKeyDown={(e) => e.key === "Enter" && handleFetch()}
                                 className="pl-9 h-11 border-primary/30 focus-visible:ring-primary"
                             />
                             <p className="text-xs text-muted-foreground mt-1.5 text-center">
@@ -207,20 +245,65 @@ export default function SmartSearch() {
                     )}
                 </AnimatePresence>
 
+                {/* Stats Bar (Only if Course Filter is active and we have results) */}
+                <AnimatePresence>
+                    {courseFilter && !loading && courseFilteredResults.length > 0 && stats && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8"
+                        >
+                            {Object.entries(stats).map(([grade, count]) => (
+                                <div
+                                    key={grade}
+                                    onClick={() => setGradeFilter(gradeFilter === grade ? null : grade)}
+                                    className={cn(
+                                        "bg-card border-l-4 rounded-r-md p-3 shadow-sm cursor-pointer transition-all hover:translate-y-[-2px]",
+                                        grade === 'A' ? "border-l-emerald-500" :
+                                            grade === 'B' ? "border-l-blue-500" :
+                                                grade === 'C' ? "border-l-yellow-500" :
+                                                    grade === 'D' ? "border-l-orange-500" :
+                                                        "border-l-red-500",
+                                        gradeFilter === grade ? "ring-2 ring-primary ring-offset-2" : "hover:bg-muted/50"
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-bold text-lg">{grade}</span>
+                                        <Badge variant="outline" className="font-mono">{count}</Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">Students</p>
+                                </div>
+                            ))}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {/* Results */}
                 <AnimatePresence>
-                    {displayData.length > 0 && (
+                    {(!loading && results.length > 0) && (
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                         >
                             <Card>
                                 <CardHeader>
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between flex-wrap gap-4">
                                         <div>
-                                            <CardTitle>Analysis Results</CardTitle>
+                                            <CardTitle className="flex items-center gap-2">
+                                                Analysis Results
+                                                {gradeFilter && (
+                                                    <Badge className="bg-primary text-primary-foreground">
+                                                        Waitlist: {gradeFilter}
+                                                        <XCircle
+                                                            className="ml-1 h-3 w-3 cursor-pointer"
+                                                            onClick={(e) => { e.stopPropagation(); setGradeFilter(null); }}
+                                                        />
+                                                    </Badge>
+                                                )}
+                                            </CardTitle>
                                             <CardDescription>
-                                                Found {displayData.length} students {courseFilter && `matching "${courseFilter}"`}
+                                                Found {courseFilteredResults.length} matches
+                                                {gradeFilter && ` (${displayData.length} shown)`}
                                             </CardDescription>
                                         </div>
                                         <Button variant="outline" size="sm" onClick={exportCSV}>
@@ -250,7 +333,13 @@ export default function SmartSearch() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {displayData.map(({ student, match }, index) => (
+                                                {displayData.length === 0 ? (
+                                                    <TableRow>
+                                                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                                            No matches found for this filter.
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ) : (displayData.map(({ student, match }, index) => (
                                                     <TableRow key={student.registrationNo} className="hover:bg-muted/50">
                                                         <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
                                                         <TableCell className="font-mono">{student.registrationNo}</TableCell>
@@ -284,7 +373,7 @@ export default function SmartSearch() {
                                                             </Button>
                                                         </TableCell>
                                                     </TableRow>
-                                                ))}
+                                                )))}
                                             </TableBody>
                                         </Table>
                                     </div>

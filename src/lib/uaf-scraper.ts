@@ -181,10 +181,6 @@ export class UAFScraper {
             // Calculate Total GP using the new strict logic
             let gradePoints = calculateCourseGP(marks, creditHours);
 
-            // Fallback for F grade or missing marks but valid grade (if any)
-            // But strict logic usually covers it. 
-            // If marks are 0 and grade is F, calculateCourseGP returns 0.
-
             return {
                 name: row.course_title,
                 code: row.course_code,
@@ -202,27 +198,6 @@ export class UAFScraper {
         });
 
         // 2. Filter to keep ONLY the best attempts
-        // This removes the failed/lower-grade attempt entirely from the list
-        // Note: filterBestAttempts returns Subject[], but we need to preserve 'semester' to group them back.
-        // We need to cast or ensure filterBestAttempts preserves extra props? 
-        // filterBestAttempts creates NEW objects? No, it returns one of the input objects.
-        // So strict typing might complain if we pass (Subject & {sem}) to Subject[].
-        // Let's rely on it returning the same object reference or copy.
-        // Actually my implementation of filterBestAttempts in gpaCalculator returns { ...subject, name: ... }
-        // So it creates a shallow copy. It might lose 'semester' if not careful?
-        // Wait, 'Subject' type doesn't have 'semester'.
-        // If I pass an object with extra props to a function taking Subject, and it returns a copy of Subject...
-        // TypeScript Spread '...subject' should copy own enumerable properties. 
-        // So 'semester' should be preserved if it's on the object.
-
-        // Let's assume it works or fix filterBestAttempts to be generic. 
-        // Or simpler: Just re-map after filtering? No, I need to know which semester the *best* attempt belongs to.
-        // I'll trust the spread operator preserves the extra 'semester' field.
-
-        // Check gpaCalculator.ts: 
-        // courseMap.set(code, { ...subject, name: newName });
-        // Yes, spread copies everything.
-
         const bestSubjects = filterBestAttempts(allSubjects) as (Subject & { semester: string })[];
 
         // 3. Group by semester
@@ -233,9 +208,6 @@ export class UAFScraper {
             if (!semestersMap.has(semKey)) {
                 semestersMap.set(semKey, []);
             }
-            // Remove the temporary 'semester' property for the clean Subject type if strictly needed,
-            // but usually valid to have extra props.
-            // But wait, the previous code created the Subject object manually.
             semestersMap.get(semKey)?.push(sub);
         });
 
@@ -262,8 +234,7 @@ export class UAFScraper {
         // Reverse to show latest semester first
         semesters.reverse();
 
-        // Calculate CGPA (filterBestAttempts is not needed again since we already filtered, 
-        // but calculating it again on already filtered list is safe)
+        // Calculate CGPA
         const cgpa = calculateCGPA(semesters);
         const totalCreditHours = semesters.reduce((sum, s) => sum + s.totalCreditHours, 0);
 
@@ -276,6 +247,75 @@ export class UAFScraper {
             totalCreditHours,
             status: 'success'
         };
+    }
+
+    public async getBatchResults(
+        agNumbers: string[],
+        onProgress: (progress: number, result?: StudentResult) => void
+    ): Promise<StudentResult[]> {
+        const results: StudentResult[] = [];
+        let completed = 0;
+
+        // Helper to update progress safely
+        const updateProgress = (result?: StudentResult) => {
+            if (result) results.push(result);
+            // Don't double count, calculate based on total target
+            // onProgress((completed / agNumbers.length) * 100, result);
+        };
+
+        // Generic processor for a list of AGs with specific concurrency
+        const processPhase = async (items: string[], concurrency: number): Promise<string[]> => {
+            const failed: string[] = [];
+
+            for (let i = 0; i < items.length; i += concurrency) {
+                const chunk = items.slice(i, i + concurrency);
+                await Promise.all(chunk.map(async (ag) => {
+                    try {
+                        const result = await this.getResult(ag);
+                        completed++;
+                        updateProgress(result);
+                        onProgress((completed / agNumbers.length) * 100, result);
+                    } catch (error) {
+                        failed.push(ag);
+                        // Do NOT increment 'completed' yet if we plan to retry
+                        // But wait, if we retry, we need to adjust the denominator?
+                        // Simpler: Just don't update progress for failures yet.
+                    }
+                }));
+                // Delay between chunks
+                if (items.length > concurrency) await new Promise(r => setTimeout(r, 100)); // Optimized delay
+            }
+            return failed;
+        };
+
+        // Phase 1: High Speed (Concurrency 12)
+        let failedItems = await processPhase(agNumbers, 12);
+
+        // Phase 2: Moderate Retry (Concurrency 2)
+        if (failedItems.length > 0) {
+            console.log(`Phase 2: Retrying ${failedItems.length} items...`);
+            failedItems = await processPhase(failedItems, 2);
+        }
+
+        // Phase 3: Sequential Last Resort (Concurrency 1)
+        if (failedItems.length > 0) {
+            console.log(`Phase 3: Sequential retry for ${failedItems.length} items...`);
+            for (const ag of failedItems) {
+                try {
+                    const result = await this.getResult(ag);
+                    completed++;
+                    updateProgress(result);
+                    onProgress((completed / agNumbers.length) * 100, result);
+                } catch (error) {
+                    console.error(`Final failure for ${ag}:`, error);
+                    // Mark as completed (but failed)
+                    completed++;
+                    onProgress((completed / agNumbers.length) * 100);
+                }
+            }
+        }
+
+        return results;
     }
 }
 
