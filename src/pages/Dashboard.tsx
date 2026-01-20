@@ -36,10 +36,10 @@ const features = [
     color: "success",
   },
   {
-    icon: Calculator,
-    title: "GPA Calculator",
-    description: "Calculate GPA and CGPA with our intuitive calculator",
-    path: "/calculator",
+    icon: Search,
+    title: "Smart Search",
+    description: "Search and filter results by course, grade, and CGPA",
+    path: "/smart-search",
     color: "warning",
   },
 ];

@@ -214,8 +214,15 @@ export class UAFScraper {
         const semesters: SemesterResult[] = [];
         const sortedSemesterNames = Array.from(semestersMap.keys()).sort(compareSemesters);
 
-        sortedSemesterNames.forEach((semName, index) => {
+        let regularSemesterCount = 0;
+
+        sortedSemesterNames.forEach((semName) => {
             const subjects = semestersMap.get(semName) || [];
+            const isSummer = semName.toLowerCase().includes('summer');
+
+            if (!isSummer) {
+                regularSemesterCount++;
+            }
 
             const gpa = calculateGPA(subjects);
             const totalCreditHours = subjects.reduce((sum, s) => sum + s.creditHours, 0);
@@ -223,7 +230,7 @@ export class UAFScraper {
 
             semesters.push({
                 semester: semName,
-                semesterNumber: index + 1,
+                semesterNumber: isSummer ? 0 : regularSemesterCount,
                 subjects: subjects,
                 gpa: gpa,
                 totalCreditHours,

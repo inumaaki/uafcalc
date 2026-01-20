@@ -14,8 +14,8 @@ import { cn } from "@/lib/utils";
 interface ResultCardProps {
   semester: SemesterResult;
   index: number;
-  onAddCourse?: (semesterNumber: number, course: Subject) => void;
-  onDeleteCourse?: (semesterNumber: number, courseCode: string) => void;
+  onAddCourse?: (semesterName: string, course: Subject) => void;
+  onDeleteCourse?: (semesterName: string, courseCode: string) => void;
 }
 
 export function ResultCard({ semester, index, onAddCourse, onDeleteCourse }: ResultCardProps) {
@@ -33,15 +33,17 @@ export function ResultCard({ semester, index, onAddCourse, onDeleteCourse }: Res
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
-                {semester.semesterNumber}
+                {semester.semesterNumber > 0 ? semester.semesterNumber : "S"}
               </div>
               <div>
                 <CardTitle className="text-lg">
-                  Semester {semester.semesterNumber}
+                  {semester.semester.toLowerCase().includes("summer") ? semester.semester : `Semester ${semester.semesterNumber}`}
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {semester.semester}
-                </p>
+                {!semester.semester.toLowerCase().includes("summer") && (
+                  <p className="text-sm text-muted-foreground">
+                    {semester.semester}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -137,7 +139,7 @@ export function ResultCard({ semester, index, onAddCourse, onDeleteCourse }: Res
                     {onDeleteCourse && (
                       <td className="p-2 md:p-3 text-center">
                         <button
-                          onClick={() => onDeleteCourse(semester.semesterNumber, subject.code || "")}
+                          onClick={() => onDeleteCourse(semester.semester, subject.code || "")}
                           className="p-1 hover:bg-destructive/10 rounded-full text-muted-foreground/70 hover:text-destructive transition-colors focus:outline-none focus:ring-2 focus:ring-destructive/50"
                           title="Delete Course"
                         >
@@ -179,8 +181,8 @@ export function ResultCard({ semester, index, onAddCourse, onDeleteCourse }: Res
         <AddCourseModal
           isOpen={isAddCourseOpen}
           onClose={() => setIsAddCourseOpen(false)}
-          semesterName={`Semester ${semester.semesterNumber}`}
-          onAddCourse={(course) => onAddCourse(semester.semesterNumber, course)}
+          semesterName={semester.semester}
+          onAddCourse={(course) => onAddCourse(semester.semester, course)}
         />
       )}
     </motion.div>

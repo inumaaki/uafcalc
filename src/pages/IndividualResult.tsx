@@ -51,12 +51,12 @@ export default function IndividualResult() {
   const isValid = agNumber.year.length === 4 && agNumber.number.length >= 1;
 
 
-  const handleAddCourse = (semesterNumber: number, newSubject: Subject) => {
+  const handleAddCourse = (semesterName: string, newSubject: Subject) => {
     if (!result) return;
 
     // Create a new copy of result to modify
     const updatedResult = { ...result };
-    const semesterIndex = updatedResult.semesters.findIndex(s => s.semesterNumber === semesterNumber);
+    const semesterIndex = updatedResult.semesters.findIndex(s => s.semester === semesterName);
 
     if (semesterIndex === -1) return;
 
@@ -92,11 +92,11 @@ export default function IndividualResult() {
     setResult(updatedResult);
   };
 
-  const handleDeleteCourse = (semesterNumber: number, courseCode: string) => {
+  const handleDeleteCourse = (semesterName: string, courseCode: string) => {
     if (!result) return;
 
     const updatedResult = { ...result };
-    const semesterIndex = updatedResult.semesters.findIndex(s => s.semesterNumber === semesterNumber);
+    const semesterIndex = updatedResult.semesters.findIndex(s => s.semester === semesterName);
 
     if (semesterIndex === -1) return;
 

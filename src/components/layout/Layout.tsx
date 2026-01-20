@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { motion } from "framer-motion";
+import { ScrollToTopButton } from "@/components/ui/ScrollToTopButton";
 
 interface LayoutProps {
   children: ReactNode;
@@ -21,6 +22,7 @@ export function Layout({ children }: LayoutProps) {
       </motion.main>
 
       <Footer />
+      <ScrollToTopButton />
     </div>
   );
 }
