@@ -198,7 +198,7 @@ export default function SmartSearch() {
                             </p>
                         </div>
 
-                        <div className="flex justify-center pt-2">
+                        <div className="flex flex-col items-center gap-4 pt-2">
                             <Button
                                 size="lg"
                                 onClick={handleFetch}
@@ -217,33 +217,33 @@ export default function SmartSearch() {
                                     </>
                                 )}
                             </Button>
+
+                            {/* Progress Bar (MOVED INSIDE CARD for single page fit) */}
+                            <AnimatePresence>
+                                {loading && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: "auto" }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="w-full max-w-md px-4"
+                                    >
+                                        <div className="bg-muted rounded-full h-2 overflow-hidden">
+                                            <motion.div
+                                                className="bg-primary h-full"
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${progress}%` }}
+                                                transition={{ duration: 0.3 }}
+                                            />
+                                        </div>
+                                        <p className="text-sm text-muted-foreground text-center mt-2">
+                                            Processing... {Math.round(progress)}%
+                                        </p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </CardContent>
                 </Card>
-
-                {/* Progress Bar */}
-                <AnimatePresence>
-                    {loading && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="mb-8 px-4"
-                        >
-                            <div className="bg-muted rounded-full h-2 overflow-hidden">
-                                <motion.div
-                                    className="bg-primary h-full"
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${progress}%` }}
-                                    transition={{ duration: 0.3 }}
-                                />
-                            </div>
-                            <p className="text-sm text-muted-foreground text-center mt-2">
-                                Processing... {Math.round(progress)}%
-                            </p>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
 
                 {/* Stats Bar (Only if Course Filter is active and we have results) */}
                 <AnimatePresence>

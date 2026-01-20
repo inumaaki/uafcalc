@@ -40,7 +40,7 @@ export function ResultCard({ semester, index, onAddCourse, onDeleteCourse }: Res
                   Semester {semester.semesterNumber}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  {semesterMap[semester.semesterNumber.toString()] || semester.semester}
+                  {semester.semester}
                 </p>
               </div>
             </div>
