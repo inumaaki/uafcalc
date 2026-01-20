@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import type { StudentResult, Subject, SemesterResult } from '@/types/result';
-import { calculateGPA, calculateCGPA, getGradePoint, calculateCourseGP } from './gpaCalculator';
+import { calculateGPA, calculateCGPA, getGradePoint, calculateCourseGP, filterBestAttempts } from './gpaCalculator';
 import { compareSemesters } from './course-utils';
 
 const CONFIG = {
@@ -172,29 +172,20 @@ export class UAFScraper {
     }
 
     private processResultData(info: { name: string, registrationNo: string, program: string }, rows: CourseRow[]): StudentResult {
-        // Group by semester
-        const semestersMap = new Map<string, Subject[]>();
-
-        rows.forEach(row => {
-            const semKey = row.semester;
-            if (!semestersMap.has(semKey)) {
-                semestersMap.set(semKey, []);
-            }
-
-
+        // 1. Convert ALL rows to Subject objects first
+        const allSubjects: (Subject & { semester: string })[] = rows.map(row => {
             const creditHours = parseInt(row.credit_hours) || 0;
             const marks = parseInt(row.total) || 0;
             const grade = row.grade;
 
-            // Calculate Total GP for the course
-            // Try precise calculation from marks first, else fallback to grade letter * credits
+            // Calculate Total GP using the new strict logic
             let gradePoints = calculateCourseGP(marks, creditHours);
-            if (gradePoints === 0 && grade !== 'F' && marks === 0) {
-                // Fallback if marks are missing but grade is present
-                gradePoints = getGradePoint(grade) * creditHours;
-            }
 
-            const subject: Subject = {
+            // Fallback for F grade or missing marks but valid grade (if any)
+            // But strict logic usually covers it. 
+            // If marks are 0 and grade is F, calculateCourseGP returns 0.
+
+            return {
                 name: row.course_title,
                 code: row.course_code,
                 creditHours: creditHours,
@@ -205,30 +196,62 @@ export class UAFScraper {
                 final: parseInt(row.final) || 0,
                 practical: parseInt(row.practical) || 0,
                 grade: grade,
-                gradePoints: gradePoints // Now storing TOTAL GP
+                gradePoints: gradePoints,
+                semester: row.semester // Keep track of semester for grouping later
             };
+        });
 
-            semestersMap.get(semKey)?.push(subject);
+        // 2. Filter to keep ONLY the best attempts
+        // This removes the failed/lower-grade attempt entirely from the list
+        // Note: filterBestAttempts returns Subject[], but we need to preserve 'semester' to group them back.
+        // We need to cast or ensure filterBestAttempts preserves extra props? 
+        // filterBestAttempts creates NEW objects? No, it returns one of the input objects.
+        // So strict typing might complain if we pass (Subject & {sem}) to Subject[].
+        // Let's rely on it returning the same object reference or copy.
+        // Actually my implementation of filterBestAttempts in gpaCalculator returns { ...subject, name: ... }
+        // So it creates a shallow copy. It might lose 'semester' if not careful?
+        // Wait, 'Subject' type doesn't have 'semester'.
+        // If I pass an object with extra props to a function taking Subject, and it returns a copy of Subject...
+        // TypeScript Spread '...subject' should copy own enumerable properties. 
+        // So 'semester' should be preserved if it's on the object.
+
+        // Let's assume it works or fix filterBestAttempts to be generic. 
+        // Or simpler: Just re-map after filtering? No, I need to know which semester the *best* attempt belongs to.
+        // I'll trust the spread operator preserves the extra 'semester' field.
+
+        // Check gpaCalculator.ts: 
+        // courseMap.set(code, { ...subject, name: newName });
+        // Yes, spread copies everything.
+
+        const bestSubjects = filterBestAttempts(allSubjects) as (Subject & { semester: string })[];
+
+        // 3. Group by semester
+        const semestersMap = new Map<string, Subject[]>();
+
+        bestSubjects.forEach(sub => {
+            const semKey = sub.semester;
+            if (!semestersMap.has(semKey)) {
+                semestersMap.set(semKey, []);
+            }
+            // Remove the temporary 'semester' property for the clean Subject type if strictly needed,
+            // but usually valid to have extra props.
+            // But wait, the previous code created the Subject object manually.
+            semestersMap.get(semKey)?.push(sub);
         });
 
         const semesters: SemesterResult[] = [];
-
-        // Sort semesters chronologically
         const sortedSemesterNames = Array.from(semestersMap.keys()).sort(compareSemesters);
 
         sortedSemesterNames.forEach((semName, index) => {
             const subjects = semestersMap.get(semName) || [];
 
-            // Calculate GPA using centralized logic
             const gpa = calculateGPA(subjects);
-
             const totalCreditHours = subjects.reduce((sum, s) => sum + s.creditHours, 0);
-            // Sum gradePoints directly since they are now Total GP
             const totalGradePoints = subjects.reduce((sum, s) => sum + s.gradePoints, 0);
 
             semesters.push({
                 semester: semName,
-                semesterNumber: index + 1, // 1-based index from sorted array
+                semesterNumber: index + 1,
                 subjects: subjects,
                 gpa: gpa,
                 totalCreditHours,
@@ -236,9 +259,11 @@ export class UAFScraper {
             });
         });
 
-        // Reverse to show latest semester first (7th, 6th, ... 1st)
+        // Reverse to show latest semester first
         semesters.reverse();
 
+        // Calculate CGPA (filterBestAttempts is not needed again since we already filtered, 
+        // but calculating it again on already filtered list is safe)
         const cgpa = calculateCGPA(semesters);
         const totalCreditHours = semesters.reduce((sum, s) => sum + s.totalCreditHours, 0);
 

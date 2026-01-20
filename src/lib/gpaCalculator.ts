@@ -10,51 +10,35 @@ export function getGradePoint(grade: string): number {
 
 export function calculateCourseGP(marks: number, creditHours: number): number {
   if (!creditHours || isNaN(marks)) return 0;
+  if (calculateGradeLetter(marks, creditHours) === 'F') return 0;
 
-  // Basic strict fail check (below 40% usually, or based on the logic: marks < creditHours * 8)
-  // Logic from external: marksForMinGP = creditHours * 8. If totalMarks < marksForMaxGP but >= marksForMinGP...
-  // So if marks < creditHours * 8, it returns 0?
-  // External code: 
-  // if (totalMarks >= marksForMaxGP) return max
-  // else if (totalMarks >= marksForMinGP) { ... }
-  // else { return minGradePoints } -> Wait, minGradePoints is creditHours * 1?
-  // Actually, checking the external file again:
-  // line 47: return minGradePoints.
-  // line 18: minGradePoints = creditHours.
-  // This implies if you have 1 mark, you get 1.0 GP (for 1 credit)? That seems wrong for UAF.
-  // Usually < 8 marks per credit (40%) is F (0 GP).
-  // However, the external code had: if (course.grade === 'F') return 0; at the top.
-  // Since we are calculating from marks, we must define the Fail threshold.
-  // UAF rule: Pass marks is usually 40%.
-  // 40% of (20 * credits) = 8 * credits.
-  // So if marks < 8 * creditHours, convert to F (0 GP).
+  let maxGradePoints = 0;
+  let minGradePoints = 0;
+  let marksForMaxGP = 0;
+  let marksForMinGP = 0;
 
-  const minPassingMarks = creditHours * 8;
-  if (marks < minPassingMarks) return 0;
-
-  const maxGradePoints = creditHours * 4;
-  const minGradePoints = creditHours; // 1.0 GPA per credit?
-  const marksForMaxGP = creditHours * 16; // 80%
-  const marksForMinGP = creditHours * 8;  // 40%
+  if (creditHours >= 1 && creditHours <= 5) {
+    maxGradePoints = creditHours * 4;
+    minGradePoints = creditHours;
+    marksForMaxGP = creditHours * 16;
+    marksForMinGP = creditHours * 8;
+  } else {
+    return 0;
+  }
 
   if (marks >= marksForMaxGP) {
     return maxGradePoints;
   } else if (marks >= marksForMinGP) {
-    // Logic for marks between 40% and 80%
     const totalGap = marksForMaxGP - marks;
 
-    // External logic has a weird specific branch:
-    // if (totalMarks <= dGradeMarks) { ... }
-    // dGradeMarks = marksForMinGP + creditHours * 2 (i.e. 40% + 10% = 50%)
+    // Explicit D Grade Logic from Reference
     const dGradeMarks = marksForMinGP + creditHours * 2;
-
     if (marks <= dGradeMarks) {
-      // D grade logic (40-50%)
       const gap = marks - marksForMinGP;
       const grades = minGradePoints + (gap * 0.5);
       return grades;
     } else {
-      // Normal deduction logic (>50%)
+      // Deduction Logic
       let totalDeduction = 0;
       for (let i = 0; i < totalGap; i++) {
         const position = i % 3;
@@ -62,8 +46,12 @@ export function calculateCourseGP(marks: number, creditHours: number): number {
         else if (position === 1) totalDeduction += 0.34;
         else totalDeduction += 0.33;
       }
-      return maxGradePoints - totalDeduction;
+      // Return fixed precision number
+      const gp = maxGradePoints - totalDeduction;
+      return Number(gp.toFixed(2));
     }
+  } else {
+    return minGradePoints;
   }
 
   return 0;
@@ -86,22 +74,12 @@ export function calculateGPA(subjects: Subject[]): number {
   let totalCreditHours = 0;
 
   subjects.forEach((subject) => {
-    // Use existing gradePoints if available and valid, otherwise calculate
-    // Actually, for consistency, if we trust the scraper's marks, we could recalculate.
-    // But scraper scrapes the GP directly from the result card, which is the source of truth.
-    // If subject.gradePoints is 0 and marks > 0, maybe we should calculate?
-    // For now, trust subject.gradePoints if it exists, else calculate.
-
-    const gp = subject.gradePoints;
-    // Note: subject.gradePoints is usually the total GP for the course (e.g. 12).
-    // calculateCourseGP returns total GP for the course.
-
-    totalGradePoints += gp;
+    // Rely on calculated gradePoints
+    totalGradePoints += subject.gradePoints;
     totalCreditHours += subject.creditHours;
   });
 
   if (totalCreditHours === 0) return 0;
-  // GPA = Total GP / Total Credits
   return Number((totalGradePoints / totalCreditHours).toFixed(2));
 }
 
@@ -118,15 +96,20 @@ export function filterBestAttempts(subjects: Subject[]): Subject[] {
     if (!existing) {
       courseMap.set(code, subject);
     } else {
-      // Compare marks (assuming marks are populated). If marks missing, use gradePoints?
-      // Marks are better source.
       const currentMarks = subject.marks || 0;
       const existingMarks = existing.marks || 0;
 
       if (currentMarks > existingMarks) {
-        courseMap.set(code, subject);
-      } else if (currentMarks === existingMarks) {
-        // If marks equal, maybe take latest? (Not tracking date easily here, keep existing)
+        // Current is better, replace existing
+        // Mark as improved? The UI might want to know.
+        // We can append (Improved) to the name if not present
+        const newName = subject.name.includes('(Improved)') ? subject.name : `${subject.name} (Improved)`;
+        courseMap.set(code, { ...subject, name: newName });
+      } else {
+        // Existing is better or equal, keep it. 
+        // But maybe existing needs (Improved) tag if it was a repeat? 
+        // Hard to know which one came later without semester info here.
+        // But usually we just want the highest marks.
       }
     }
   });
