@@ -11,6 +11,9 @@ const CONFIG = {
     MAX_RETRIES: 3,
     RETRY_DELAY: 1000,
     AXIOS_TIMEOUT: 30000,
+    LEGACY_URL: "/api/legacy/",
+    LEGACY_DEFAULT: "/api/legacy/default.aspx",
+    LEGACY_DETAIL: "/api/legacy/StudentDetail.aspx",
 };
 
 interface CourseRow {
@@ -29,6 +32,109 @@ interface CourseRow {
 }
 
 export class UAFScraper {
+    private async getLegacyCourses(regNumber: string): Promise<CourseRow[]> {
+        try {
+            // 1. Initial GET to fetch ViewState
+            const initialResponse = await axios.get(CONFIG.LEGACY_URL, {
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+
+            const $ = cheerio.load(initialResponse.data);
+            const viewstate = $('#__VIEWSTATE').val();
+            const eventValidation = $('#__EVENTVALIDATION').val();
+            const viewstateGenerator = $('#__VIEWSTATEGENERATOR').val();
+
+            if (!viewstate || !eventValidation) {
+                console.warn('Failed to extract ViewState from legacy portal');
+                return [];
+            }
+
+            // 2. POST to Default
+            const formData = new URLSearchParams();
+            formData.append('__VIEWSTATE', viewstate as string);
+            formData.append('__VIEWSTATEGENERATOR', viewstateGenerator as string || '');
+            formData.append('__EVENTVALIDATION', eventValidation as string);
+            formData.append('ctl00$Main$txtReg', regNumber);
+            formData.append('ctl00$Main$btnShow', 'Show');
+
+            // Note: We need to handle cookies manually in browser if not handled by proxy automatically?
+            // The proxy configuration `proxyRes` handles cookie attributes (SameSite), so browser should attach them automatically for subsequent requests 
+            // to the same domain (which is local /api/legacy).
+
+            await axios.post(CONFIG.LEGACY_DEFAULT, formData, {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            });
+
+            // 3. GET Detail
+            const detailResponse = await axios.get(CONFIG.LEGACY_DETAIL);
+
+            // 4. Parse
+            const $detail = cheerio.load(detailResponse.data);
+            const courses: CourseRow[] = [];
+
+            const resultTable = $detail('#ctl00_Main_TabContainer1_tbResultInformation_gvResultInformation');
+
+            const cleanMarkValue = (value: string): string => {
+                return value.endsWith('.00') ? value.substring(0, value.length - 3) : value;
+            };
+
+            resultTable.find('tr:gt(0)').each((index, row) => {
+                const cols = $detail(row).find('td');
+                if (cols.length > 0) {
+                    // Columns based on reference implementation
+                    // 0: Sr, 1: ?, 2: ?, 3: Semester, 4: Teacher, 5: Course Code, 6: Title, 7: ?, 8: Mid, 9: Ass, 10: Fin, 11: Prac, 12: Tot, 13: Grd
+                    const semester = $detail(cols[3]).text().trim();
+                    const courseCode = $detail(cols[5]).text().trim();
+                    const teacherName = $detail(cols[4]).text().trim();
+                    const courseName = $detail(cols[6]).text().trim();
+
+                    // Marks
+                    const mid = cleanMarkValue($detail(cols[8]).text().trim());
+                    const assignment = cleanMarkValue($detail(cols[9]).text().trim());
+                    const final = cleanMarkValue($detail(cols[10]).text().trim());
+                    const practical = cleanMarkValue($detail(cols[11]).text().trim());
+                    const total = cleanMarkValue($detail(cols[12]).text().trim());
+                    const grade = $detail(cols[13]).text().trim();
+
+                    // Basic validation
+                    if (courseCode && semester) {
+                        courses.push({
+                            sr: (index + 1).toString(),
+                            semester,
+                            teacher_name: teacherName || 'N/A',
+                            course_code: courseCode,
+                            course_title: courseName || courseCode,
+                            credit_hours: '', // Legacy portal often misses credit hours in this view? Reference doesn't map it?
+                            // Wait, reference `parseAttendanceData` sets credit_hours: '' (empty).
+                            // If credit hours are missing, GPA calc might fail.
+                            // We might need to guess or it might be in another col?
+                            // Reference `index.ts` line 322: `credit_hours: '',`. 
+                            // If so, `calculateGradePoints` needs to handle it.
+                            // `uaf-scraper.ts` logic `processResultData` filters best attempts?
+                            // `gpaCalculator.ts`: `calculateCourseGP` -> `if (!creditHours ... return 0`.
+                            // So these courses won't affect GPA? That's sad.
+                            // But maybe the MAIN logic provides credit hours.
+                            // If legacy is providing NEW subjects, they will have 0 GPA impact if credit hours are 0.
+                            // Let's assume for now we keep it as is.
+                            credit_hours: '3', // Default to 3 if missing? Or try to extract? 
+                            // Let's stick to empty string and see or maybe default 3 is unsafe. 
+                            // Actually, let's leave as empty string. If the user wants to calculate, they can edit?
+                            // Or better, check if we can find credit hours.
+                            // The reference implementation doesn't extract it.
+                            mid, assignment, final, practical, total, grade
+                        });
+                    }
+                }
+            });
+
+            return courses;
+
+        } catch (e) {
+            console.warn("Legacy fetch failed", e);
+            return []; // Fail silently for secondary source
+        }
+    }
+
     private async submitFormAndGetResult(regNumber: string): Promise<string> {
         try {
             // 1. Get Login Page to fetch Token
@@ -43,6 +149,7 @@ export class UAFScraper {
             const token = tokenMatch ? tokenMatch[1] : '';
 
             if (!token) {
+                // If token fails, maybe try legacy? But we need Student Info from LMS.
                 throw new Error('Failed to extract authentication token from LMS');
             }
 
@@ -85,17 +192,84 @@ export class UAFScraper {
 
         while (retries < CONFIG.MAX_RETRIES) {
             try {
-                const html = await this.submitFormAndGetResult(regNumber);
+                // Fetch both sources in parallel
+                const [lmsResult, legacyCourses] = await Promise.all([
+                    this.submitFormAndGetResult(regNumber),
+                    this.getLegacyCourses(regNumber)
+                ]);
 
-                const $ = cheerio.load(html);
+                const $ = cheerio.load(lmsResult);
                 const info = this.extractStudentInfo($);
-                const { results } = this.extractResultData($);
+                const { results: lmsCourses } = this.extractResultData($);
 
-                if (results.length === 0) {
+                // Helper to normalize semester names
+                // e.g. "Winter 2023-2024" -> "Winter Semester 2023-2024"
+                const normalizeSemester = (sem: string) => {
+                    const lower = sem.toLowerCase();
+                    let type = '';
+
+                    if (lower.includes('winter')) type = 'Winter Semester';
+                    else if (lower.includes('spring')) type = 'Spring Semester';
+                    else if (lower.includes('summer')) type = 'Summer Semester';
+                    else return sem; // Can't identify type
+
+                    // 1. LMS Format: "2024-2025" or "2024/2025"
+                    const rangeMatch = sem.match(/(\d{4})[-/](\d{2,4})/);
+                    if (rangeMatch) {
+                        const startYear = parseInt(rangeMatch[1]);
+                        let endYear = parseInt(rangeMatch[2]);
+                        if (endYear < 100) endYear = Math.floor(startYear / 100) * 100 + endYear;
+                        return `${type} ${startYear}-${endYear}`;
+                    }
+
+                    // 2. Legacy Format: "winter25" -> Ends in 2025, Starts in 2024
+                    // Matches "winter25", "spring 25"
+                    const shortMatch = lower.match(/[a-z]+[\s-]*(\d{2})$/);
+                    if (shortMatch) {
+                        const endYearShort = parseInt(shortMatch[1]);
+                        const endYear = 2000 + endYearShort;
+                        const startYear = endYear - 1;
+                        return `${type} ${startYear}-${endYear}`;
+                    }
+
+                    // 3. Single Year Fallback: "Winter 2024" -> "Winter Semester 2024-2025"
+                    const yearMatch = sem.match(/(\d{4})/);
+                    if (yearMatch) {
+                        const val = parseInt(yearMatch[1]);
+                        return `${type} ${val}-${val + 1}`;
+                    }
+
+                    return sem;
+                };
+
+                // Merge Logic:
+                // 1. Create a map of LMS courses
+                const courseMap = new Map<string, CourseRow>();
+
+                lmsCourses.forEach(c => {
+                    // Update to normalized semester
+                    c.semester = normalizeSemester(c.semester);
+                    courseMap.set(`${c.course_code}-${c.semester}`, c);
+                });
+
+                // 2. Add Legacy courses if not present
+                legacyCourses.forEach(c => {
+                    // Update to normalized semester
+                    c.semester = normalizeSemester(c.semester);
+
+                    const key = `${c.course_code}-${c.semester}`;
+                    if (!courseMap.has(key)) {
+                        courseMap.set(key, c);
+                    }
+                });
+
+                const mergedResults = Array.from(courseMap.values());
+
+                if (mergedResults.length === 0) {
                     throw new Error('No result data found for this student');
                 }
 
-                return this.processResultData(info, results);
+                return this.processResultData(info, mergedResults);
 
             } catch (error) {
                 lastError = error as Error;

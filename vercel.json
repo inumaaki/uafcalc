@@ -5,6 +5,10 @@
             "destination": "https://lms.uaf.edu.pk/:path*"
         },
         {
+            "source": "/api/legacy/:path*",
+            "destination": "http://121.52.152.24/:path*"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
