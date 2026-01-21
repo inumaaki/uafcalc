@@ -10,51 +10,32 @@ export function getGradePoint(grade: string): number {
 
 export function calculateCourseGP(marks: number, creditHours: number): number {
   if (!creditHours || isNaN(marks)) return 0;
-  if (calculateGradeLetter(marks, creditHours) === 'F') return 0;
+  if (marks < 0) return 0;
 
-  let maxGradePoints = 0;
-  let minGradePoints = 0;
-  let marksForMaxGP = 0;
-  let marksForMinGP = 0;
+  // Calculate percentage based on 20 marks per credit hour rule
+  const maxMarks = creditHours * 20;
+  const percentage = (marks / maxMarks) * 100;
 
-  if (creditHours >= 1 && creditHours <= 5) {
-    maxGradePoints = creditHours * 4;
-    minGradePoints = creditHours;
-    marksForMaxGP = creditHours * 16;
-    marksForMinGP = creditHours * 8;
+  let gpa = 0;
+
+  if (percentage >= 80) {
+    gpa = 4.0;
+  } else if (percentage >= 50) {
+    // Linear 2.0 to 4.0 over 30% range
+    gpa = 2.0 + (percentage - 50) * (2.0 / 30);
+  } else if (percentage >= 40) {
+    // Linear 1.0 to 2.0 over 10% range
+    gpa = 1.0 + (percentage - 40) * (1.0 / 10);
   } else {
     return 0;
   }
 
-  if (marks >= marksForMaxGP) {
-    return maxGradePoints;
-  } else if (marks >= marksForMinGP) {
-    const totalGap = marksForMaxGP - marks;
+  // Calculate Quality Points (QP)
+  // The Excel sheet shows QP rounded to 2 decimal places (e.g. 11.33)
+  const qp = gpa * creditHours;
 
-    // Explicit D Grade Logic from Reference
-    const dGradeMarks = marksForMinGP + creditHours * 2;
-    if (marks <= dGradeMarks) {
-      const gap = marks - marksForMinGP;
-      const grades = minGradePoints + (gap * 0.5);
-      return grades;
-    } else {
-      // Deduction Logic
-      let totalDeduction = 0;
-      for (let i = 0; i < totalGap; i++) {
-        const position = i % 3;
-        if (position === 0) totalDeduction += 0.33;
-        else if (position === 1) totalDeduction += 0.34;
-        else totalDeduction += 0.33;
-      }
-      // Return fixed precision number
-      const gp = maxGradePoints - totalDeduction;
-      return Number(gp.toFixed(2));
-    }
-  } else {
-    return minGradePoints;
-  }
-
-  return 0;
+  // Return rounded QP to 2 decimal places as per system convention
+  return Number(qp.toFixed(2));
 }
 
 // Helper to determine Grade Letter from marks (Approximate based on UAF usually)

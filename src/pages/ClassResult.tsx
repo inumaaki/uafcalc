@@ -358,7 +358,7 @@ export default function ClassResult() {
                             <TableCell className="font-mono whitespace-nowrap">{student.registrationNo}</TableCell>
                             <TableCell className="min-w-[140px]">{student.name}</TableCell>
                             <TableCell className="text-center font-bold text-blue-600">
-                              {student.semesters.length > 0 ? student.semesters[student.semesters.length - 1].gpa.toFixed(2) : "-"}
+                              {student.semesters.length > 0 ? student.semesters[0].gpa.toFixed(2) : "-"}
                             </TableCell>
                             <TableCell className={cn(
                               "text-center font-bold",

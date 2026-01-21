@@ -75,7 +75,18 @@ export class UAFScraper {
             const resultTable = $detail('#ctl00_Main_TabContainer1_tbResultInformation_gvResultInformation');
 
             const cleanMarkValue = (value: string): string => {
-                return value.endsWith('.00') ? value.substring(0, value.length - 3) : value;
+                // Ensure we don't accidentally remove valid decimals if logic was too aggressive
+                // Actually the portal usually sends "45.00" or "45". 
+                // We want to keep it as string for now, but parse as float later.
+                return value.replace('&nbsp;', '').trim();
+            };
+
+            const extractCreditHours = (title: string): string => {
+                const match = title.match(/\((\d+)[-+](\d+)\)/); // Matches (3-0) or (3+1)
+                if (match) {
+                    return (parseInt(match[1]) + parseInt(match[2])).toString();
+                }
+                return '';
             };
 
             resultTable.find('tr:gt(0)').each((index, row) => {
@@ -98,13 +109,19 @@ export class UAFScraper {
 
                     // Basic validation
                     if (courseCode && semester) {
+                        // Try to extract credit hours from title first
+                        let creditHours = extractCreditHours(courseName || courseCode);
+                        if (!creditHours) {
+                            creditHours = '3'; // Default to 3 if regex fails (legacy view often lacks explicit CH column)
+                        }
+
                         courses.push({
                             sr: (index + 1).toString(),
                             semester,
                             teacher_name: teacherName || 'N/A',
                             course_code: courseCode,
                             course_title: courseName || courseCode,
-                            credit_hours: '3', // Defaulting to 3 as legacy portal doesn't provide it reliably in this view
+                            credit_hours: creditHours,
                             mid, assignment, final, practical, total, grade
                         });
                     }
@@ -293,7 +310,8 @@ export class UAFScraper {
         // 1. Convert ALL rows to Subject objects first
         const allSubjects: (Subject & { semester: string })[] = rows.map(row => {
             const creditHours = parseInt(row.credit_hours) || 0;
-            const marks = parseInt(row.total) || 0;
+            // Use parseFloat to preserve marks like 41.5 which affects GPA precision
+            const marks = parseFloat(row.total) || 0;
             const grade = row.grade;
 
             // Calculate Total GP using the new strict logic
