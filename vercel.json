@@ -1,12 +1,12 @@
 {
     "rewrites": [
         {
-            "source": "/api/uaf/:match*",
-            "destination": "https://lms.uaf.edu.pk/:match*"
+            "source": "/api/uaf/:path*",
+            "destination": "/api/proxy"
         },
         {
-            "source": "/api/legacy/:match*",
-            "destination": "http://121.52.152.24/:match*"
+            "source": "/api/legacy/:path*",
+            "destination": "/api/proxy"
         },
         {
             "source": "/((?!assets/|.*\\..*).*)",
