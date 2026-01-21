@@ -361,7 +361,7 @@ export class UAFScraper {
                 const chunk = items.slice(i, i + concurrency);
                 await Promise.all(chunk.map(async (ag) => {
                     try {
-                        const result = await this.getResult(ag, false);
+                        const result = await this.getResult(ag, true);
                         completed++;
                         updateProgress(result);
                         onProgress((completed / agNumbers.length) * 100, result);
