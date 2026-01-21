@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, Download, Filter, BookOpen, XCircle } from "lucide-react";
+import { Search, Loader2, Download, Filter, BookOpen, XCircle, Info } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { AGNumberInput } from "@/components/ui/AGNumberInput";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { generateAGRange, parseAGNumber } from "@/lib/gpaCalculator";
 import type { StudentResult, Subject } from "@/types/result";
 import { uafScraper } from "@/lib/uaf-scraper";
-import { StudentDetailModal } from "@/components/results/StudentDetailModal";
+import { CourseDetailModal } from "@/components/results/CourseDetailModal";
 import { cn } from "@/lib/utils";
 
 export default function SmartSearch() {
@@ -22,7 +22,7 @@ export default function SmartSearch() {
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<StudentResult[]>([]);
     const [progress, setProgress] = useState(0);
-    const [selectedStudent, setSelectedStudent] = useState<StudentResult | null>(null);
+    const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
 
     const handleFetch = async () => {
         if (!startAG.year || !startAG.number || !endAG.year || !endAG.number) return;
@@ -116,11 +116,11 @@ export default function SmartSearch() {
     const exportCSV = () => {
         if (displayData.length === 0) return;
 
-        const headers = ["Name", "Registration No", "CGPA", ...(courseFilter ? ["Course", "Marks", "Grade", "GP"] : [])];
+        const headers = ["Name", "Registration No", "CGPA", ...(courseFilter ? ["Marks", "Grade", "GP"] : [])];
         const rows = displayData.map(({ student, match }) => {
             const base = [student.name, student.registrationNo, student.cgpa.toFixed(2)];
             if (match) {
-                base.push(match.name, match.marks.toString(), match.grade, match.gradePoints.toString());
+                base.push(match.marks.toString(), match.grade, match.gradePoints.toString());
             }
             return base;
         });
@@ -322,7 +322,6 @@ export default function SmartSearch() {
                                                     <TableHead>Name</TableHead>
                                                     {courseFilter ? (
                                                         <>
-                                                            <TableHead className="text-center font-bold text-primary">Course</TableHead>
                                                             <TableHead className="text-center">Marks</TableHead>
                                                             <TableHead className="text-center">Grade</TableHead>
                                                         </>
@@ -347,9 +346,6 @@ export default function SmartSearch() {
 
                                                         {courseFilter && match ? (
                                                             <>
-                                                                <TableCell className="text-center text-xs font-bold text-primary max-w-[150px] truncate" title={match.name}>
-                                                                    {match.name}
-                                                                </TableCell>
                                                                 <TableCell className="text-center font-mono">{match.marks}</TableCell>
                                                                 <TableCell className="text-center">
                                                                     <Badge variant="secondary" className="font-bold">
@@ -364,13 +360,16 @@ export default function SmartSearch() {
                                                         )}
 
                                                         <TableCell>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => setSelectedStudent(student)}
-                                                            >
-                                                                <Search className="h-4 w-4 text-muted-foreground" />
-                                                            </Button>
+                                                            {match && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => setSelectedSubject(match)}
+                                                                    title="View Subject Details"
+                                                                >
+                                                                    <Info className="h-4 w-4 text-primary" />
+                                                                </Button>
+                                                            )}
                                                         </TableCell>
                                                     </TableRow>
                                                 )))}
@@ -383,10 +382,10 @@ export default function SmartSearch() {
                     )}
                 </AnimatePresence>
 
-                <StudentDetailModal
-                    isOpen={!!selectedStudent}
-                    onClose={() => setSelectedStudent(null)}
-                    student={selectedStudent}
+                <CourseDetailModal
+                    isOpen={!!selectedSubject}
+                    onClose={() => setSelectedSubject(null)}
+                    course={selectedSubject}
                 />
             </div>
         </Layout>

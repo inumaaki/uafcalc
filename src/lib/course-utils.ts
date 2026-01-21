@@ -73,3 +73,46 @@ export function getSemesterMap(allSemesters: string[]): Record<string, number> {
     });
     return map;
 }
+
+/**
+ * Normalize semester name to standard format "Type Semester YYYY-YYYY"
+ * Handles legacy codes (e.g. "winter25") and various input formats.
+ */
+export function normalizeSemesterName(sem: string): string {
+    const lower = sem.toLowerCase();
+    let type = '';
+
+    if (lower.includes('winter')) type = 'Winter Semester';
+    else if (lower.includes('spring')) type = 'Spring Semester';
+    else if (lower.includes('summer')) type = 'Summer Semester';
+    else return sem; // Can't identify type
+
+    // 1. LMS Format: "2024-2025" or "2024/2025"
+    const rangeMatch = sem.match(/(\d{4})[-/](\d{2,4})/);
+    if (rangeMatch) {
+        const startYear = parseInt(rangeMatch[1]);
+        let endYear = parseInt(rangeMatch[2]);
+        if (endYear < 100) endYear = Math.floor(startYear / 100) * 100 + endYear;
+        return `${type} ${startYear}-${endYear}`;
+    }
+
+    // 2. Legacy Format: "winter25" -> Ends in 2025, Starts in 2024
+    // Legacy code typically refers to the End Year of the session (Exam Year)
+    const shortMatch = lower.match(/[a-z]+[\s-]*(\d{2})$/);
+    if (shortMatch) {
+        const endYearShort = parseInt(shortMatch[1]);
+        const endYear = 2000 + endYearShort;
+        const startYear = endYear - 1;
+        return `${type} ${startYear}-${endYear}`;
+    }
+
+    // 3. Single Year Fallback: "Winter 2024"
+    // Assume it is the Start Year
+    const yearMatch = sem.match(/(\d{4})/);
+    if (yearMatch) {
+        const year = parseInt(yearMatch[1]);
+        return `${type} ${year}-${year + 1}`;
+    }
+
+    return sem;
+}

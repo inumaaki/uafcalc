@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import type { StudentResult, Subject, SemesterResult } from '@/types/result';
 import { calculateGPA, calculateCGPA, getGradePoint, calculateCourseGP, filterBestAttempts } from './gpaCalculator';
-import { compareSemesters } from './course-utils';
+import { compareSemesters, normalizeSemesterName } from './course-utils';
 
 const CONFIG = {
     // Use local proxy path
@@ -186,61 +186,21 @@ export class UAFScraper {
         }
     }
 
-    public async getResult(regNumber: string): Promise<StudentResult> {
+    public async getResult(regNumber: string, includeLegacy: boolean = true): Promise<StudentResult> {
         let retries = 0;
         let lastError: Error | null = null;
 
         while (retries < CONFIG.MAX_RETRIES) {
             try {
-                // Fetch both sources in parallel
+                // Fetch both sources in parallel (conditionally fetch legacy)
                 const [lmsResult, legacyCourses] = await Promise.all([
                     this.submitFormAndGetResult(regNumber),
-                    this.getLegacyCourses(regNumber)
+                    includeLegacy ? this.getLegacyCourses(regNumber) : Promise.resolve([])
                 ]);
 
                 const $ = cheerio.load(lmsResult);
                 const info = this.extractStudentInfo($);
                 const { results: lmsCourses } = this.extractResultData($);
-
-                // Helper to normalize semester names
-                // e.g. "Winter 2023-2024" -> "Winter Semester 2023-2024"
-                const normalizeSemester = (sem: string) => {
-                    const lower = sem.toLowerCase();
-                    let type = '';
-
-                    if (lower.includes('winter')) type = 'Winter Semester';
-                    else if (lower.includes('spring')) type = 'Spring Semester';
-                    else if (lower.includes('summer')) type = 'Summer Semester';
-                    else return sem; // Can't identify type
-
-                    // 1. LMS Format: "2024-2025" or "2024/2025"
-                    const rangeMatch = sem.match(/(\d{4})[-/](\d{2,4})/);
-                    if (rangeMatch) {
-                        const startYear = parseInt(rangeMatch[1]);
-                        let endYear = parseInt(rangeMatch[2]);
-                        if (endYear < 100) endYear = Math.floor(startYear / 100) * 100 + endYear;
-                        return `${type} ${startYear}-${endYear}`;
-                    }
-
-                    // 2. Legacy Format: "winter25" -> Ends in 2025, Starts in 2024
-                    // Matches "winter25", "spring 25"
-                    const shortMatch = lower.match(/[a-z]+[\s-]*(\d{2})$/);
-                    if (shortMatch) {
-                        const endYearShort = parseInt(shortMatch[1]);
-                        const endYear = 2000 + endYearShort;
-                        const startYear = endYear - 1;
-                        return `${type} ${startYear}-${endYear}`;
-                    }
-
-                    // 3. Single Year Fallback: "Winter 2024" -> "Winter Semester 2024-2025"
-                    const yearMatch = sem.match(/(\d{4})/);
-                    if (yearMatch) {
-                        const val = parseInt(yearMatch[1]);
-                        return `${type} ${val}-${val + 1}`;
-                    }
-
-                    return sem;
-                };
 
                 // Merge Logic:
                 // 1. Create a map of LMS courses
@@ -248,14 +208,14 @@ export class UAFScraper {
 
                 lmsCourses.forEach(c => {
                     // Update to normalized semester
-                    c.semester = normalizeSemester(c.semester);
+                    c.semester = normalizeSemesterName(c.semester);
                     courseMap.set(`${c.course_code}-${c.semester}`, c);
                 });
 
                 // 2. Add Legacy courses if not present
                 legacyCourses.forEach(c => {
                     // Update to normalized semester
-                    c.semester = normalizeSemester(c.semester);
+                    c.semester = normalizeSemesterName(c.semester);
 
                     const key = `${c.course_code}-${c.semester}`;
                     if (!courseMap.has(key)) {
@@ -452,7 +412,7 @@ export class UAFScraper {
                 const chunk = items.slice(i, i + concurrency);
                 await Promise.all(chunk.map(async (ag) => {
                     try {
-                        const result = await this.getResult(ag);
+                        const result = await this.getResult(ag, false);
                         completed++;
                         updateProgress(result);
                         onProgress((completed / agNumbers.length) * 100, result);
@@ -483,7 +443,7 @@ export class UAFScraper {
             console.log(`Phase 3: Sequential retry for ${failedItems.length} items...`);
             for (const ag of failedItems) {
                 try {
-                    const result = await this.getResult(ag);
+                    const result = await this.getResult(ag, false);
                     completed++;
                     updateProgress(result);
                     onProgress((completed / agNumbers.length) * 100, result);
