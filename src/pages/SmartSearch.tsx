@@ -293,7 +293,7 @@ export default function SmartSearch() {
                                                 Analysis Results
                                                 {gradeFilter && (
                                                     <Badge className="bg-primary text-primary-foreground">
-                                                        Waitlist: {gradeFilter}
+                                                        Filter: {gradeFilter}
                                                         <XCircle
                                                             className="ml-1 h-3 w-3 cursor-pointer"
                                                             onClick={(e) => { e.stopPropagation(); setGradeFilter(null); }}

@@ -74,7 +74,7 @@ export function AGReviewDialog({ isOpen, onClose, initialAGs, onConfirm }: AGRev
                             No registration numbers listed. Add some above.
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {ags.map((ag, idx) => (
                                 <div key={`${ag}-${idx}`} className="flex items-center justify-between bg-card border px-2 py-1.5 rounded-md text-sm">
                                     <span className="font-mono truncate mr-2" title={ag}>{ag}</span>
