@@ -34,42 +34,13 @@ interface CourseRow {
 export class UAFScraper {
     private async getLegacyCourses(regNumber: string): Promise<CourseRow[]> {
         try {
-            // 1. Initial GET to fetch ViewState
-            const initialResponse = await axios.get(CONFIG.LEGACY_URL, {
+            // 1. Call Proxy
+            const response = await axios.get(`/api/proxy?action=fetch_legacy&regNumber=${regNumber}`, {
                 headers: { 'Cache-Control': 'no-cache' }
             });
 
-            const $ = cheerio.load(initialResponse.data);
-            const viewstate = $('#__VIEWSTATE').val();
-            const eventValidation = $('#__EVENTVALIDATION').val();
-            const viewstateGenerator = $('#__VIEWSTATEGENERATOR').val();
-
-            if (!viewstate || !eventValidation) {
-                console.warn('Failed to extract ViewState from legacy portal');
-                return [];
-            }
-
-            // 2. POST to Default
-            const formData = new URLSearchParams();
-            formData.append('__VIEWSTATE', viewstate as string);
-            formData.append('__VIEWSTATEGENERATOR', viewstateGenerator as string || '');
-            formData.append('__EVENTVALIDATION', eventValidation as string);
-            formData.append('ctl00$Main$txtReg', regNumber);
-            formData.append('ctl00$Main$btnShow', 'Show');
-
-            // Note: We need to handle cookies manually in browser if not handled by proxy automatically?
-            // The proxy configuration `proxyRes` handles cookie attributes (SameSite), so browser should attach them automatically for subsequent requests 
-            // to the same domain (which is local /api/legacy).
-
-            await axios.post(CONFIG.LEGACY_DEFAULT, formData, {
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-            });
-
-            // 3. GET Detail
-            const detailResponse = await axios.get(CONFIG.LEGACY_DETAIL);
-
-            // 4. Parse
-            const $detail = cheerio.load(detailResponse.data);
+            // 2. Parse (Proxy returns the HTML of detailing page)
+            const $detail = cheerio.load(response.data);
             const courses: CourseRow[] = [];
 
             const resultTable = $detail('#ctl00_Main_TabContainer1_tbResultInformation_gvResultInformation');
@@ -138,35 +109,15 @@ export class UAFScraper {
 
     private async submitFormAndGetResult(regNumber: string): Promise<string> {
         try {
-            // 1. Get Login Page to fetch Token
-            const loginPageResponse = await axios.get(CONFIG.LOGIN_URL, {
+            // Call Proxy
+            const response = await axios.get(`/api/proxy?action=fetch_lms&regNumber=${regNumber}`, {
                 headers: {
                     'Cache-Control': 'no-cache',
                     'Pragma': 'no-cache'
                 }
             });
 
-            const tokenMatch = loginPageResponse.data.match(/document\.getElementById\(['"]token['"]\)\.value\s*=\s*['"]([^'"]+)['"]/);
-            const token = tokenMatch ? tokenMatch[1] : '';
-
-            if (!token) {
-                // If token fails, maybe try legacy? But we need Student Info from LMS.
-                throw new Error('Failed to extract authentication token from LMS');
-            }
-
-            // 2. Post Data to Result URL
-            const formData = new URLSearchParams();
-            formData.append('Register', regNumber);
-            formData.append('token', token);
-
-            const resultResponse = await axios.post(CONFIG.RESULT_URL, formData, {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                timeout: CONFIG.AXIOS_TIMEOUT,
-            });
-
-            const html = resultResponse.data;
+            const html = response.data;
 
             if (typeof html !== 'string' || html.length < 100) {
                 throw new Error('Invalid response received from LMS');
