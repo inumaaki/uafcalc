@@ -35,7 +35,7 @@ export class UAFScraper {
     private async getLegacyCourses(regNumber: string): Promise<CourseRow[]> {
         try {
             // 1. Initial GET to fetch ViewState
-            const initialResponse = await axios.get(CONFIG.LEGACY_DEFAULT, {
+            const initialResponse = await axios.get(CONFIG.LEGACY_URL, {
                 headers: { 'Cache-Control': 'no-cache' }
             });
 
@@ -62,9 +62,7 @@ export class UAFScraper {
             // to the same domain (which is local /api/legacy).
 
             await axios.post(CONFIG.LEGACY_DEFAULT, formData, {
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                maxRedirects: 0,
-                validateStatus: (status) => status === 200 || status === 302
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
 
             // 3. GET Detail
