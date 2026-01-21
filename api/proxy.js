@@ -1,17 +1,16 @@
 import axios from 'axios';
 import https from 'https';
-// We use a simple regex for token extraction, so we don't strictly need cheerio on server if we want to keep it light.
-// But for Legacy ViewState, cheerio is helpful. We'll try regex for ViewState too if possible, or assume cheerio is available.
-// Since cheerio is in package.json, we can import it.
-import * as cheerio from 'cheerio';
 
+// HTTPS Agent to ignore SSL errors (crucial for UAF)
 const httpsAgent = new https.Agent({
     rejectUnauthorized: false
 });
 
+// URLs MUST be HTTPS
 const CONFIG = {
-    LOGIN_URL: "http://lms.uaf.edu.pk/login/index.php",
-    RESULT_URL: "http://lms.uaf.edu.pk/course/uaf_student_result.php",
+    LOGIN_URL: "https://lms.uaf.edu.pk/login/index.php",
+    RESULT_URL: "https://lms.uaf.edu.pk/course/uaf_student_result.php",
+    // Legacy is usually HTTP
     LEGACY_URL: "http://121.52.152.24/",
     LEGACY_DEFAULT: "http://121.52.152.24/default.aspx",
     LEGACY_DETAIL: "http://121.52.152.24/StudentDetail.aspx",
@@ -29,20 +28,35 @@ const HEADERS = {
 };
 
 async function fetchLMS(regNumber) {
+    console.log(`[LMS] Fetching Login Page: ${CONFIG.LOGIN_URL}`);
+
     // 1. Get Login Page
     const loginRes = await axios.get(CONFIG.LOGIN_URL, {
         headers: HEADERS,
-        httpsAgent
+        httpsAgent,
+        validateStatus: () => true
     });
+
+    if (loginRes.status !== 200) {
+        throw new Error(`Login page failed with status ${loginRes.status}`);
+    }
 
     const cookies = loginRes.headers['set-cookie'];
     const cookieHeader = cookies ? cookies.map(c => c.split(';')[0]).join('; ') : '';
 
-    // Extract Token
+    // Extract Token (Regex)
+    // Pattern: document.getElementById('token').value = '...';
+    // We use a robust regex to catch single or double quotes
     const tokenMatch = loginRes.data.match(/document\.getElementById\(['"]token['"]\)\.value\s*=\s*['"]([^'"]+)['"]/);
     const token = tokenMatch ? tokenMatch[1] : '';
 
-    if (!token) throw new Error('Failed to extract LMS token');
+    if (!token) {
+        console.error('[LMS] Token not found in login page HTML');
+        // console.debug(loginRes.data.substring(0, 500)); // Log regex target area if needed
+        throw new Error('Failed to extract LMS token');
+    }
+
+    console.log(`[LMS] Token extracted. Posting to ${CONFIG.RESULT_URL} with reg: ${regNumber}`);
 
     // 2. Post Result
     const formData = new URLSearchParams();
@@ -53,35 +67,52 @@ async function fetchLMS(regNumber) {
         headers: {
             ...HEADERS,
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Origin': 'http://lms.uaf.edu.pk',
+            'Origin': 'https://lms.uaf.edu.pk',
             'Referer': CONFIG.LOGIN_URL,
             'Cookie': cookieHeader
         },
         maxRedirects: 5,
         httpsAgent,
-        timeout: CONFIG.TIMEOUT
+        timeout: CONFIG.TIMEOUT,
+        validateStatus: () => true
     });
+
+    if (resultRes.status !== 200) {
+        throw new Error(`Result page failed with status ${resultRes.status}`);
+    }
 
     return resultRes.data;
 }
 
 async function fetchLegacy(regNumber) {
+    console.log(`[Legacy] Fetching Default Page: ${CONFIG.LEGACY_URL}`);
+
     // 1. Get Default Page (to get ViewState)
     const initialRes = await axios.get(CONFIG.LEGACY_URL, {
         headers: HEADERS,
-        httpsAgent
+        httpsAgent, // Even if it's HTTP, agent is safer or ignored
+        validateStatus: () => true
     });
 
-    const $ = cheerio.load(initialRes.data);
-    const viewstate = $('#__VIEWSTATE').val();
-    const eventValidation = $('#__EVENTVALIDATION').val();
-    const viewstateGenerator = $('#__VIEWSTATEGENERATOR').val();
+    if (initialRes.status !== 200) throw new Error(`Legacy initial fetch failed: ${initialRes.status}`);
 
-    // Legacy cookies (ASP.NET_SessionId)
+    // Regex for ViewState
+    const viewstateMatch = initialRes.data.match(/id="__VIEWSTATE" value="([^"]+)"/);
+    const viewstate = viewstateMatch ? viewstateMatch[1] : '';
+
+    const eventValidationMatch = initialRes.data.match(/id="__EVENTVALIDATION" value="([^"]+)"/);
+    const eventValidation = eventValidationMatch ? eventValidationMatch[1] : '';
+
+    const generatorMatch = initialRes.data.match(/id="__VIEWSTATEGENERATOR" value="([^"]+)"/);
+    const viewstateGenerator = generatorMatch ? generatorMatch[1] : '';
+
+    if (!viewstate) throw new Error('Failed to extract Legacy ViewState');
+
+    // Cookies
     const cookies = initialRes.headers['set-cookie'];
     const cookieHeader = cookies ? cookies.map(c => c.split(';')[0]).join('; ') : '';
 
-    if (!viewstate) throw new Error('Failed to extract Legacy ViewState');
+    console.log(`[Legacy] Posting Form...`);
 
     // 2. Post to Default
     const formData = new URLSearchParams();
@@ -100,7 +131,8 @@ async function fetchLegacy(regNumber) {
             'Referer': CONFIG.LEGACY_DEFAULT
         },
         httpsAgent,
-        maxRedirects: 5
+        maxRedirects: 5,
+        validateStatus: () => true
     });
 
     // 3. Get Detail Page
@@ -110,8 +142,11 @@ async function fetchLegacy(regNumber) {
             'Cookie': cookieHeader,
             'Referer': CONFIG.LEGACY_DEFAULT
         },
-        httpsAgent
+        httpsAgent,
+        validateStatus: () => true
     });
+
+    if (detailRes.status !== 200) throw new Error(`Legacy detail fetch failed: ${detailRes.status}`);
 
     return detailRes.data;
 }
@@ -131,12 +166,11 @@ export default async function handler(req, res) {
         } else if (action === 'fetch_legacy') {
             html = await fetchLegacy(regNumber);
         } else {
-            return res.status(400).json({ error: 'Invalid action. Use fetch_lms or fetch_legacy' });
+            return res.status(400).json({ error: `Invalid action: ${action}` });
         }
 
-        // Basic Validation
         if (!html || html.length < 100) {
-            throw new Error('Empty response received');
+            throw new Error('Empty response received from scraped page');
         }
 
         res.setHeader('Cache-Control', 'no-store');
@@ -144,7 +178,12 @@ export default async function handler(req, res) {
         res.status(200).send(html);
 
     } catch (error) {
-        console.error('Proxy Action Error:', error.message);
-        res.status(500).json({ error: 'Fetch Failed', details: error.message });
+        console.error('Proxy Fatal Error:', error.message);
+        // Return error details to client for debugging
+        res.status(500).json({
+            error: 'Fetch Failed',
+            details: error.message,
+            stack: error.stack
+        });
     }
 }
