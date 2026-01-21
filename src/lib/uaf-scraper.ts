@@ -392,7 +392,7 @@ export class UAFScraper {
             console.log(`Phase 3: Sequential retry for ${failedItems.length} items...`);
             for (const ag of failedItems) {
                 try {
-                    const result = await this.getResult(ag, false);
+                    const result = await this.getResult(ag, true);
                     completed++;
                     updateProgress(result);
                     onProgress((completed / agNumbers.length) * 100, result);
