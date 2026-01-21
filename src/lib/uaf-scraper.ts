@@ -62,7 +62,9 @@ export class UAFScraper {
             // to the same domain (which is local /api/legacy).
 
             await axios.post(CONFIG.LEGACY_DEFAULT, formData, {
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                maxRedirects: 0,
+                validateStatus: (status) => status === 200 || status === 302
             });
 
             // 3. GET Detail
