@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StudentOverview } from "./StudentOverview";
 import { ResultCard } from "./ResultCard";
@@ -21,7 +21,9 @@ export function StudentDetailModal({ isOpen, onClose, student }: StudentDetailMo
                         <DialogTitle className="text-2xl font-bold flex items-center gap-2">
                             <span className="text-primary">Student Details</span>
                         </DialogTitle>
-                        {/* Close button is automatically added by DialogContent, but we can add custom header actions if needed */}
+                        <DialogDescription className="sr-only">
+                            Detailed academic record including GPA and course marks for {student.name}.
+                        </DialogDescription>
                     </div>
                 </DialogHeader>
 

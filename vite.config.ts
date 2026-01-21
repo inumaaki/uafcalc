@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => ({
         target: "https://lms.uaf.edu.pk",
         changeOrigin: true,
         secure: false,
+        timeout: 60000,
+        proxyTimeout: 60000,
         autoRewrite: true,
         cookieDomainRewrite: "",
         rewrite: (path) => path.replace(/^\/api\/uaf/, ""),
@@ -29,12 +31,17 @@ export default defineConfig(({ mode }) => ({
               proxyRes.headers["set-cookie"] = newCookies;
             }
           });
+          proxy.on('error', (err, _req, _res) => {
+            console.log('proxy error', err);
+          });
         },
       },
       "/api/legacy": {
         target: "http://121.52.152.24",
         changeOrigin: true,
         secure: false,
+        timeout: 60000,
+        proxyTimeout: 60000,
         autoRewrite: true,
         cookieDomainRewrite: "",
         rewrite: (path) => path.replace(/^\/api\/legacy/, ""),
@@ -47,6 +54,9 @@ export default defineConfig(({ mode }) => ({
               );
               proxyRes.headers["set-cookie"] = newCookies;
             }
+          });
+          proxy.on('error', (err, _req, _res) => {
+            console.log('proxy error', err);
           });
         },
       },

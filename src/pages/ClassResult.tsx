@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, Download, Upload, Users, XCircle } from "lucide-react";
+import { Search, Loader2, Download, Upload, Users, XCircle, ArrowRightLeft } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { AGNumberInput } from "@/components/ui/AGNumberInput";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { generateAGRange, parseAGNumber } from "@/lib/gpaCalculator";
 import { uafScraper } from "@/lib/uaf-scraper";
 import type { StudentResult } from "@/types/result";
 import { StudentDetailModal } from "@/components/results/StudentDetailModal";
+import { AGReviewDialog } from "@/components/results/AGReviewDialog";
 import * as XLSX from 'xlsx';
 import { cn } from "@/lib/utils";
 
@@ -24,6 +26,8 @@ export default function ClassResult() {
   const [progress, setProgress] = useState(0);
   const [selectedStudent, setSelectedStudent] = useState<StudentResult | null>(null);
   const [gradeFilter, setGradeFilter] = useState<string | null>(null);
+  const [pendingAGs, setPendingAGs] = useState<string[]>([]);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
 
   const handleRangeFetch = async () => {
     if (!startAG.year || !startAG.number || !endAG.year || !endAG.number) return;
@@ -61,22 +65,43 @@ export default function ClassResult() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       try {
         const data = new Uint8Array(event.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json<{ AG: string }>(worksheet);
 
-        const excelAGs = jsonData.map(row => row.AG).filter(ag => ag && typeof ag === 'string');
+        // Read as array of arrays to scan all cells
+        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+        const agRegex = /\b\d{4}-ag-\d+\b/gi;
+        const foundAGs: string[] = [];
 
-        if (excelAGs.length > 0) {
-          await handleExcelFetch(excelAGs);
+        rows.forEach(row => {
+          row.forEach(cell => {
+            if (typeof cell === 'string') {
+              const matches = cell.match(agRegex);
+              if (matches) {
+                matches.forEach(m => foundAGs.push(m.toLowerCase()));
+              }
+            }
+          });
+        });
+
+        // Deduplicate
+        const uniqueAGs = Array.from(new Set(foundAGs));
+
+        if (uniqueAGs.length > 0) {
+          setPendingAGs(uniqueAGs);
+          setIsReviewOpen(true);
+        } else {
+          alert("No valid AG numbers (format: YYYY-ag-XXXX) found in the file.");
         }
       } catch (error) {
         console.error("Error parsing Excel:", error);
       }
+      // Reset input
+      e.target.value = '';
     };
     reader.readAsArrayBuffer(file);
   };
@@ -176,72 +201,83 @@ export default function ClassResult() {
           </p>
         </motion.div>
 
-        {/* Controls */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Range Fetch */}
-          <Card className="border-primary/20 shadow-lg relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-3 opacity-10">
-              <Search className="w-24 h-24 text-primary" />
-            </div>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary">
-                <Users className="h-5 w-5" />
-                By AG Range
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col items-center gap-4">
-                {/* RESPONSIVE INPUT LAYOUT: Stack on Mobile, Row on Desktop */}
-                <div className="flex flex-col md:flex-row items-center gap-4 w-full justify-center">
+        {/* Tabs Controls */}
+        <Tabs defaultValue="range" className="mb-8">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 h-10 mb-6">
+            <TabsTrigger value="range" className="gap-2">
+              <ArrowRightLeft className="h-4 w-4" />
+              AG Range
+            </TabsTrigger>
+            <TabsTrigger value="excel" className="gap-2">
+              <Download className="h-4 w-4" />
+              Excel Upload
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="range" className="mt-0">
+            <Card className="border-primary/20 shadow-lg">
+              <CardHeader className="text-center pb-2">
+                <CardTitle className="text-2xl">AG Number Range</CardTitle>
+                <CardDescription>Enter starting and ending AG numbers to fetch results for all students in between</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="flex flex-col md:flex-row items-center md:items-end justify-center gap-4">
                   <div className="flex flex-col items-center gap-1">
-                    <span className="md:hidden text-xs font-medium text-muted-foreground">Start</span>
-                    <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleRangeFetch} className="w-full max-w-[280px] md:w-auto" />
+                    <span className="text-xs font-medium text-muted-foreground">Start AG</span>
+                    <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleRangeFetch} className="w-full max-w-[290px] md:w-auto" />
                   </div>
 
-                  <span className="text-muted-foreground font-bold hidden md:block">to</span>
+                  <div className="h-11 flex items-center justify-center hidden md:flex">
+                    <span className="text-2xl font-bold text-muted-foreground pb-1">→</span>
+                  </div>
 
                   <div className="flex flex-col items-center gap-1">
-                    <span className="md:hidden text-xs font-medium text-muted-foreground">End</span>
-                    <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleRangeFetch} className="w-full max-w-[280px] md:w-auto" />
+                    <span className="text-xs font-medium text-muted-foreground">End AG</span>
+                    <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleRangeFetch} className="w-full max-w-[290px] md:w-auto" />
+                  </div>
+
+                  <Button
+                    className="w-full max-w-[290px] md:w-auto h-11 font-bold px-8 mt-2 md:mt-0"
+                    onClick={handleRangeFetch}
+                    disabled={!isRangeValid || loading}
+                  >
+                    {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Search className="mr-2 h-4 w-4" />}
+                    Fetch All
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="excel" className="mt-0">
+            <Card className="border-primary/20 shadow-lg">
+              <CardHeader className="text-center pb-2">
+                <CardTitle className="text-2xl">Upload Student List</CardTitle>
+                <CardDescription>Upload an Excel or CSV file containing a list of Registration numbers (column "AG")</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="max-w-md mx-auto flex flex-col gap-4">
+                  <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="excel-upload" className="sr-only">Upload .xlsx / .csv</Label>
+                    <div className="flex items-center justify-center w-full">
+                      <Label
+                        htmlFor="excel-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors border-primary/20"
+                      >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="w-8 h-8 mb-3 text-muted-foreground" />
+                          <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                          <p className="text-xs text-muted-foreground">.xlsx or .csv files</p>
+                        </div>
+                        <Input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelUpload} disabled={loading} />
+                      </Label>
+                    </div>
                   </div>
                 </div>
-
-                <Button
-                  className="w-full md:w-[280px] font-bold"
-                  onClick={handleRangeFetch}
-                  disabled={!isRangeValid || loading}
-                >
-                  {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Search className="mr-2 h-4 w-4" />}
-                  Fetch Class
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Excel Upload */}
-          <Card className="border-primary/20 shadow-lg relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-3 opacity-10">
-              <Upload className="w-24 h-24 text-primary" />
-            </div>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary">
-                <Upload className="h-5 w-5" />
-                From Excel
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col gap-4">
-                <div className="grid w-full max-w-sm items-center gap-1.5">
-                  <Label htmlFor="excel-upload">Upload .xlsx / .csv</Label>
-                  <Input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} disabled={loading} />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  File must contain an "AG" column (e.g., "2022-ag-8000").
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Progress */}
         <AnimatePresence>
@@ -267,38 +303,7 @@ export default function ClassResult() {
           )}
         </AnimatePresence>
 
-        {/* Stats Bar */}
-        <AnimatePresence>
-          {!loading && results.length > 0 && stats && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8"
-            >
-              {Object.entries(stats).map(([grade, count]) => (
-                <div
-                  key={grade}
-                  onClick={() => setGradeFilter(gradeFilter === grade ? null : grade)}
-                  className={cn(
-                    "bg-card border-l-4 rounded-r-md p-3 shadow-sm cursor-pointer transition-all hover:translate-y-[-2px]",
-                    grade === 'A' ? "border-l-emerald-500" :
-                      grade === 'B' ? "border-l-blue-500" :
-                        grade === 'C' ? "border-l-yellow-500" :
-                          grade === 'D' ? "border-l-orange-500" :
-                            "border-l-red-500",
-                    gradeFilter === grade ? "ring-2 ring-primary ring-offset-2" : "hover:bg-muted/50"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-lg">{grade}</span>
-                    <Badge variant="outline" className="font-mono">{count}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Est. {grade} Grade</p>
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Stats Bar - Removed as per request */}
 
         {/* Results Table */}
         <AnimatePresence>
@@ -341,8 +346,8 @@ export default function ClassResult() {
                           <TableHead>#</TableHead>
                           <TableHead>Registration</TableHead>
                           <TableHead className="min-w-[140px]">Name</TableHead>
+                          <TableHead className="text-center">GPA</TableHead>
                           <TableHead className="text-center">CGPA</TableHead>
-                          <TableHead className="text-center">Creds</TableHead>
                           <TableHead className="w-10"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -352,6 +357,9 @@ export default function ClassResult() {
                             <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
                             <TableCell className="font-mono whitespace-nowrap">{student.registrationNo}</TableCell>
                             <TableCell className="min-w-[140px]">{student.name}</TableCell>
+                            <TableCell className="text-center font-bold text-blue-600">
+                              {student.semesters.length > 0 ? student.semesters[student.semesters.length - 1].gpa.toFixed(2) : "-"}
+                            </TableCell>
                             <TableCell className={cn(
                               "text-center font-bold",
                               student.cgpa >= 3 ? "text-emerald-600" :
@@ -359,7 +367,6 @@ export default function ClassResult() {
                             )}>
                               {student.cgpa.toFixed(2)}
                             </TableCell>
-                            <TableCell className="text-center text-muted-foreground">{student.totalCreditHours}</TableCell>
                             <TableCell>
                               <Button
                                 variant="ghost"
@@ -384,6 +391,16 @@ export default function ClassResult() {
           isOpen={!!selectedStudent}
           onClose={() => setSelectedStudent(null)}
           student={selectedStudent}
+        />
+
+        <AGReviewDialog
+          isOpen={isReviewOpen}
+          initialAGs={pendingAGs}
+          onClose={() => setIsReviewOpen(false)}
+          onConfirm={(ags) => {
+            setIsReviewOpen(false);
+            handleExcelFetch(ags);
+          }}
         />
       </div>
     </Layout>

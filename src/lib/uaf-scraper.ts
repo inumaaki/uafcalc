@@ -104,23 +104,7 @@ export class UAFScraper {
                             teacher_name: teacherName || 'N/A',
                             course_code: courseCode,
                             course_title: courseName || courseCode,
-                            credit_hours: '', // Legacy portal often misses credit hours in this view? Reference doesn't map it?
-                            // Wait, reference `parseAttendanceData` sets credit_hours: '' (empty).
-                            // If credit hours are missing, GPA calc might fail.
-                            // We might need to guess or it might be in another col?
-                            // Reference `index.ts` line 322: `credit_hours: '',`. 
-                            // If so, `calculateGradePoints` needs to handle it.
-                            // `uaf-scraper.ts` logic `processResultData` filters best attempts?
-                            // `gpaCalculator.ts`: `calculateCourseGP` -> `if (!creditHours ... return 0`.
-                            // So these courses won't affect GPA? That's sad.
-                            // But maybe the MAIN logic provides credit hours.
-                            // If legacy is providing NEW subjects, they will have 0 GPA impact if credit hours are 0.
-                            // Let's assume for now we keep it as is.
-                            credit_hours: '3', // Default to 3 if missing? Or try to extract? 
-                            // Let's stick to empty string and see or maybe default 3 is unsafe. 
-                            // Actually, let's leave as empty string. If the user wants to calculate, they can edit?
-                            // Or better, check if we can find credit hours.
-                            // The reference implementation doesn't extract it.
+                            credit_hours: '3', // Defaulting to 3 as legacy portal doesn't provide it reliably in this view
                             mid, assignment, final, practical, total, grade
                         });
                     }

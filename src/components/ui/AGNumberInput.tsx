@@ -53,7 +53,7 @@ export function AGNumberInput({ value, onChange, onEnter, className }: AGNumberI
   return (
     <motion.div
       className={cn(
-        "flex items-center justify-center gap-2 px-4 h-11 rounded-md border-2 transition-all duration-200 bg-card",
+        "flex items-center justify-center gap-1 md:gap-2 px-2 md:px-4 h-11 rounded-md border-2 transition-all duration-200 bg-card",
         focused ? "border-primary shadow-lg" : "border-border",
         className
       )}
@@ -70,16 +70,16 @@ export function AGNumberInput({ value, onChange, onEnter, className }: AGNumberI
         onKeyDown={handleYearKeyDown}
         onFocus={() => setFocused("year")}
         onBlur={() => setFocused(null)}
-        className="w-20 text-center font-semibold text-lg border-none shadow-none outline-none ring-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
+        className="w-14 md:w-20 text-center font-semibold text-lg border-none shadow-none outline-none ring-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
         maxLength={4}
       />
 
       {/* Separator */}
-      <span className="text-xl font-bold text-primary">-</span>
-      <span className="px-3 py-1 rounded-md bg-primary text-primary-foreground font-bold text-sm">
+      <span className="text-lg md:text-xl font-bold text-primary">-</span>
+      <span className="px-2 py-0.5 md:px-3 md:py-1 rounded-md bg-primary text-primary-foreground font-bold text-xs md:text-sm">
         AG
       </span>
-      <span className="text-xl font-bold text-primary">-</span>
+      <span className="text-lg md:text-xl font-bold text-primary">-</span>
 
       {/* Number Input */}
       <Input
@@ -92,7 +92,7 @@ export function AGNumberInput({ value, onChange, onEnter, className }: AGNumberI
         onKeyDown={handleNumberKeyDown}
         onFocus={() => setFocused("number")}
         onBlur={() => setFocused(null)}
-        className="w-20 text-center font-semibold text-lg border-none shadow-none outline-none ring-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+        className="w-14 md:w-20 text-center font-semibold text-lg border-none shadow-none outline-none ring-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
         maxLength={6}
       />
     </motion.div>
