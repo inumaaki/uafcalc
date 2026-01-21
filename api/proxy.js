@@ -122,24 +122,45 @@ async function fetchLegacy(regNumber) {
     formData.append('ctl00$Main$txtReg', regNumber);
     formData.append('ctl00$Main$btnShow', 'Show');
 
-    await axios.post(CONFIG.LEGACY_DEFAULT, formData, {
-        headers: {
-            ...HEADERS,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Cookie': cookieHeader,
-            'Origin': 'http://121.52.152.24',
-            'Referer': CONFIG.LEGACY_DEFAULT
-        },
+    // Headers for POST
+    const postHeaders = {
+        ...HEADERS,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Cookie': cookieHeader,
+        'Origin': 'http://121.52.152.24',
+        'Referer': CONFIG.LEGACY_DEFAULT
+    };
+
+    const postRes = await axios.post(CONFIG.LEGACY_DEFAULT, formData, {
+        headers: postHeaders,
         httpsAgent,
         maxRedirects: 5,
         validateStatus: () => true
     });
 
+    if (postRes.status !== 200 && postRes.status !== 302) {
+        // 302 is common in ASP.NET after post, but here we expect content or redirect 
+        throw new Error(`Legacy POST failed: ${postRes.status}`);
+    }
+
+    // Capture NEW Cookies from POST response (Critical!)
+    // ASP.NET often sets the SessionId or specialized cookie here
+    const postCookies = postRes.headers['set-cookie'];
+    let detailCookieHeader = cookieHeader; // Default to initial if no new ones
+
+    if (postCookies && postCookies.length > 0) {
+        // We should merge or replace. Usually replacing is fine or improved merging.
+        // Let's use the new ones as primary for the session.
+        detailCookieHeader = postCookies.map(c => c.split(';')[0]).join('; ');
+    }
+
+    console.log(`[Legacy] POST success. Fetching Detail with cookies: ${detailCookieHeader.substring(0, 20)}...`);
+
     // 3. Get Detail Page
     const detailRes = await axios.get(CONFIG.LEGACY_DETAIL, {
         headers: {
             ...HEADERS,
-            'Cookie': cookieHeader,
+            'Cookie': detailCookieHeader, // USE NEW COOKIES
             'Referer': CONFIG.LEGACY_DEFAULT
         },
         httpsAgent,
