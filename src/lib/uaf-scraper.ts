@@ -429,13 +429,13 @@ export class UAFScraper {
             return failed;
         };
 
-        // Phase 1: High Speed (Concurrency 12)
-        let failedItems = await processPhase(agNumbers, 12);
+        // Phase 1: High Speed (Concurrency 30)
+        let failedItems = await processPhase(agNumbers, 30);
 
-        // Phase 2: Moderate Retry (Concurrency 2)
+        // Phase 2: Moderate Retry (Concurrency 5)
         if (failedItems.length > 0) {
             console.log(`Phase 2: Retrying ${failedItems.length} items...`);
-            failedItems = await processPhase(failedItems, 2);
+            failedItems = await processPhase(failedItems, 5);
         }
 
         // Phase 3: Sequential Last Resort (Concurrency 1)
