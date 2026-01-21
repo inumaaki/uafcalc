@@ -1,26 +1,25 @@
 import axios from 'axios';
 import https from 'https';
 
-// HTTPS Agent to ignore SSL errors (crucial for UAF)
+// HTTPS Agent to ignore SSL errors
 const httpsAgent = new https.Agent({
     rejectUnauthorized: false
 });
 
-// URLs MUST be HTTPS
+// Reference Config (Exact match where possible)
 const CONFIG = {
     LOGIN_URL: "https://lms.uaf.edu.pk/login/index.php",
     RESULT_URL: "https://lms.uaf.edu.pk/course/uaf_student_result.php",
-    // Legacy is usually HTTP
     LEGACY_URL: "http://121.52.152.24/",
     LEGACY_DEFAULT: "http://121.52.152.24/default.aspx",
     LEGACY_DETAIL: "http://121.52.152.24/StudentDetail.aspx",
     TIMEOUT: 30000
 };
 
+// Reference Headers (Chrome 91)
 const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
     'Connection': 'keep-alive',
     'Cache-Control': 'no-cache',
     'Pragma': 'no-cache',
@@ -28,8 +27,6 @@ const HEADERS = {
 };
 
 async function fetchLMS(regNumber) {
-    console.log(`[LMS] Fetching Login Page: ${CONFIG.LOGIN_URL}`);
-
     // 1. Get Login Page
     const loginRes = await axios.get(CONFIG.LOGIN_URL, {
         headers: HEADERS,
@@ -37,26 +34,14 @@ async function fetchLMS(regNumber) {
         validateStatus: () => true
     });
 
-    if (loginRes.status !== 200) {
-        throw new Error(`Login page failed with status ${loginRes.status}`);
-    }
-
     const cookies = loginRes.headers['set-cookie'];
     const cookieHeader = cookies ? cookies.map(c => c.split(';')[0]).join('; ') : '';
 
     // Extract Token (Regex)
-    // Pattern: document.getElementById('token').value = '...';
-    // We use a robust regex to catch single or double quotes
     const tokenMatch = loginRes.data.match(/document\.getElementById\(['"]token['"]\)\.value\s*=\s*['"]([^'"]+)['"]/);
     const token = tokenMatch ? tokenMatch[1] : '';
 
-    if (!token) {
-        console.error('[LMS] Token not found in login page HTML');
-        // console.debug(loginRes.data.substring(0, 500)); // Log regex target area if needed
-        throw new Error('Failed to extract LMS token');
-    }
-
-    console.log(`[LMS] Token extracted. Posting to ${CONFIG.RESULT_URL} with reg: ${regNumber}`);
+    if (!token) throw new Error('Failed to extract LMS token');
 
     // 2. Post Result
     const formData = new URLSearchParams();
@@ -77,26 +62,20 @@ async function fetchLMS(regNumber) {
         validateStatus: () => true
     });
 
-    if (resultRes.status !== 200) {
-        throw new Error(`Result page failed with status ${resultRes.status}`);
-    }
-
     return resultRes.data;
 }
 
 async function fetchLegacy(regNumber) {
-    console.log(`[Legacy] Fetching Default Page: ${CONFIG.LEGACY_URL}`);
-
-    // 1. Get Default Page (to get ViewState)
+    // 1. Get Default Page (Initial) to get ViewState
     const initialRes = await axios.get(CONFIG.LEGACY_URL, {
         headers: HEADERS,
-        httpsAgent, // Even if it's HTTP, agent is safer or ignored
-        validateStatus: () => true
+        httpsAgent,
+        validateStatus: () => true,
+        timeout: CONFIG.TIMEOUT
     });
 
     if (initialRes.status !== 200) throw new Error(`Legacy initial fetch failed: ${initialRes.status}`);
 
-    // Regex for ViewState
     const viewstateMatch = initialRes.data.match(/id="__VIEWSTATE" value="([^"]+)"/);
     const viewstate = viewstateMatch ? viewstateMatch[1] : '';
 
@@ -108,12 +87,6 @@ async function fetchLegacy(regNumber) {
 
     if (!viewstate) throw new Error('Failed to extract Legacy ViewState');
 
-    // Cookies
-    const cookies = initialRes.headers['set-cookie'];
-    const cookieHeader = cookies ? cookies.map(c => c.split(';')[0]).join('; ') : '';
-
-    console.log(`[Legacy] Posting Form...`);
-
     // 2. Post to Default
     const formData = new URLSearchParams();
     formData.append('__VIEWSTATE', viewstate);
@@ -122,49 +95,37 @@ async function fetchLegacy(regNumber) {
     formData.append('ctl00$Main$txtReg', regNumber);
     formData.append('ctl00$Main$btnShow', 'Show');
 
-    // Headers for POST
-    const postHeaders = {
-        ...HEADERS,
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Cookie': cookieHeader,
-        'Origin': 'http://121.52.152.24',
-        'Referer': CONFIG.LEGACY_DEFAULT
-    };
-
+    // Reference Logic: Expect 302, Max Redirects 0
     const postRes = await axios.post(CONFIG.LEGACY_DEFAULT, formData, {
-        headers: postHeaders,
+        headers: {
+            ...HEADERS,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Origin': CONFIG.LEGACY_URL, // .24
+            'Referer': CONFIG.LEGACY_URL // .24
+        },
         httpsAgent,
-        maxRedirects: 5,
-        validateStatus: () => true
+        maxRedirects: 0, // CRITICAL: Stop at redirect to capture cookie
+        validateStatus: (status) => status === 302, // Accept only 302
+        timeout: CONFIG.TIMEOUT
     });
 
-    if (postRes.status !== 200 && postRes.status !== 302) {
-        // 302 is common in ASP.NET after post, but here we expect content or redirect 
-        throw new Error(`Legacy POST failed: ${postRes.status}`);
+    // Capture Session Cookie from POST response
+    const sessionCookies = postRes.headers['set-cookie'];
+    if (!sessionCookies || sessionCookies.length === 0) {
+        throw new Error('No session cookie found in Legacy POST response');
     }
-
-    // Capture NEW Cookies from POST response (Critical!)
-    // ASP.NET often sets the SessionId or specialized cookie here
-    const postCookies = postRes.headers['set-cookie'];
-    let detailCookieHeader = cookieHeader; // Default to initial if no new ones
-
-    if (postCookies && postCookies.length > 0) {
-        // We should merge or replace. Usually replacing is fine or improved merging.
-        // Let's use the new ones as primary for the session.
-        detailCookieHeader = postCookies.map(c => c.split(';')[0]).join('; ');
-    }
-
-    console.log(`[Legacy] POST success. Fetching Detail with cookies: ${detailCookieHeader.substring(0, 20)}...`);
+    const sessionCookieHeader = sessionCookies.map(c => c.split(';')[0]).join('; ');
 
     // 3. Get Detail Page
     const detailRes = await axios.get(CONFIG.LEGACY_DETAIL, {
         headers: {
             ...HEADERS,
-            'Cookie': detailCookieHeader, // USE NEW COOKIES
+            'Cookie': sessionCookieHeader, // Use the NEW cookie
             'Referer': CONFIG.LEGACY_DEFAULT
         },
         httpsAgent,
-        validateStatus: () => true
+        validateStatus: () => true,
+        timeout: CONFIG.TIMEOUT
     });
 
     if (detailRes.status !== 200) throw new Error(`Legacy detail fetch failed: ${detailRes.status}`);
@@ -174,10 +135,6 @@ async function fetchLegacy(regNumber) {
 
 export default async function handler(req, res) {
     const { action, regNumber } = req.query;
-
-    if (!regNumber) {
-        return res.status(400).json({ error: 'Missing regNumber' });
-    }
 
     try {
         let html = '';
@@ -191,7 +148,7 @@ export default async function handler(req, res) {
         }
 
         if (!html || html.length < 100) {
-            throw new Error('Empty response received from scraped page');
+            throw new Error('Empty response received');
         }
 
         res.setHeader('Cache-Control', 'no-store');
@@ -199,8 +156,7 @@ export default async function handler(req, res) {
         res.status(200).send(html);
 
     } catch (error) {
-        console.error('Proxy Fatal Error:', error.message);
-        // Return error details to client for debugging
+        console.error('Proxy Error:', error.message);
         res.status(500).json({
             error: 'Fetch Failed',
             details: error.message,
