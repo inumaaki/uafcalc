@@ -195,14 +195,14 @@ export default function ClassResult() {
                 <div className="flex flex-col md:flex-row items-center gap-4 w-full justify-center">
                   <div className="flex flex-col items-center gap-1">
                     <span className="md:hidden text-xs font-medium text-muted-foreground">Start</span>
-                    <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleRangeFetch} className="w-[280px] md:w-auto" />
+                    <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleRangeFetch} className="w-full max-w-[280px] md:w-auto" />
                   </div>
 
                   <span className="text-muted-foreground font-bold hidden md:block">to</span>
 
                   <div className="flex flex-col items-center gap-1">
                     <span className="md:hidden text-xs font-medium text-muted-foreground">End</span>
-                    <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleRangeFetch} className="w-[280px] md:w-auto" />
+                    <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleRangeFetch} className="w-full max-w-[280px] md:w-auto" />
                   </div>
                 </div>
 
@@ -340,7 +340,7 @@ export default function ClassResult() {
                         <TableRow>
                           <TableHead>#</TableHead>
                           <TableHead>Registration</TableHead>
-                          <TableHead>Name</TableHead>
+                          <TableHead className="min-w-[140px]">Name</TableHead>
                           <TableHead className="text-center">CGPA</TableHead>
                           <TableHead className="text-center">Creds</TableHead>
                           <TableHead className="w-10"></TableHead>
@@ -350,8 +350,8 @@ export default function ClassResult() {
                         {displayData.map((student, index) => (
                           <TableRow key={student.registrationNo} className="hover:bg-muted/50">
                             <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
-                            <TableCell className="font-mono">{student.registrationNo}</TableCell>
-                            <TableCell>{student.name}</TableCell>
+                            <TableCell className="font-mono whitespace-nowrap">{student.registrationNo}</TableCell>
+                            <TableCell className="min-w-[140px]">{student.name}</TableCell>
                             <TableCell className={cn(
                               "text-center font-bold",
                               student.cgpa >= 3 ? "text-emerald-600" :

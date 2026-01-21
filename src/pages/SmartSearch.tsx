@@ -167,14 +167,14 @@ export default function SmartSearch() {
                         <div className="flex flex-col md:flex-row items-center md:items-end justify-center gap-4">
                             <div className="flex flex-col items-center gap-1">
                                 <span className="text-xs font-medium text-muted-foreground">Start AG</span>
-                                <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleFetch} className="w-[290px] md:w-auto" />
+                                <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleFetch} className="w-full max-w-[290px] md:w-auto" />
                             </div>
                             <div className="h-11 flex items-center justify-center hidden md:flex">
                                 <span className="text-2xl font-bold text-muted-foreground pb-1">→</span>
                             </div>
                             <div className="flex flex-col items-center gap-1">
                                 <span className="text-xs font-medium text-muted-foreground">End AG</span>
-                                <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleFetch} className="w-[290px] md:w-auto" />
+                                <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleFetch} className="w-full max-w-[290px] md:w-auto" />
                             </div>
                         </div>
 
@@ -191,7 +191,7 @@ export default function SmartSearch() {
                                     setGradeFilter(null); // Reset grade filter when course changes
                                 }}
                                 onKeyDown={(e) => e.key === "Enter" && handleFetch()}
-                                className="pl-9 h-11 border-primary/30 focus-visible:ring-primary"
+                                className="pl-9 h-11 border-primary/30 focus-visible:ring-primary w-full"
                             />
                             <p className="text-xs text-muted-foreground mt-1.5 text-center">
                                 Leave empty to see all results, or type to filter specific subjects.
@@ -203,7 +203,7 @@ export default function SmartSearch() {
                                 size="lg"
                                 onClick={handleFetch}
                                 disabled={!isRangeValid || loading}
-                                className="w-[200px] font-bold shadow-lg shadow-primary/20"
+                                className="w-full max-w-[200px] font-bold shadow-lg shadow-primary/20"
                             >
                                 {loading ? (
                                     <>
@@ -319,7 +319,7 @@ export default function SmartSearch() {
                                                 <TableRow>
                                                     <TableHead>#</TableHead>
                                                     <TableHead>Registration</TableHead>
-                                                    <TableHead>Name</TableHead>
+                                                    <TableHead className="min-w-[140px]">Name</TableHead>
                                                     {courseFilter ? (
                                                         <>
                                                             <TableHead className="text-center">Marks</TableHead>
@@ -341,8 +341,8 @@ export default function SmartSearch() {
                                                 ) : (displayData.map(({ student, match }, index) => (
                                                     <TableRow key={student.registrationNo} className="hover:bg-muted/50">
                                                         <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
-                                                        <TableCell className="font-mono">{student.registrationNo}</TableCell>
-                                                        <TableCell>{student.name}</TableCell>
+                                                        <TableCell className="font-mono whitespace-nowrap">{student.registrationNo}</TableCell>
+                                                        <TableCell className="min-w-[140px]">{student.name}</TableCell>
 
                                                         {courseFilter && match ? (
                                                             <>
