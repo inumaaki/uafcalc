@@ -5,15 +5,11 @@ import { calculateGPA, calculateCGPA, getGradePoint, calculateCourseGP, filterBe
 import { compareSemesters, normalizeSemesterName } from './course-utils';
 
 const CONFIG = {
-    // Use local proxy path
-    LOGIN_URL: "/api/uaf/login/index.php",
-    RESULT_URL: "/api/uaf/course/uaf_student_result.php",
+    // API PROXY
+    PROXY_URL: "/api/proxy",
     MAX_RETRIES: 3,
     RETRY_DELAY: 1000,
-    AXIOS_TIMEOUT: 30000,
-    LEGACY_URL: "/api/legacy/",
-    LEGACY_DEFAULT: "/api/legacy/default.aspx",
-    LEGACY_DETAIL: "/api/legacy/StudentDetail.aspx",
+    AXIOS_TIMEOUT: 60000,
 };
 
 interface CourseRow {
