@@ -1,43 +1,16 @@
 {
     "rewrites": [
         {
-            "source": "/api/uaf/:path*",
-            "destination": "https://lms.uaf.edu.pk/:path*"
+            "source": "/api/uaf/:match*",
+            "destination": "https://lms.uaf.edu.pk/:match*"
         },
         {
-            "source": "/api/legacy/:path*",
-            "destination": "http://121.52.152.24/:path*"
+            "source": "/api/legacy/:match*",
+            "destination": "http://121.52.152.24/:match*"
         },
         {
-            "source": "/(.*)",
+            "source": "/((?!assets/|.*\\..*).*)",
             "destination": "/index.html"
-        }
-    ],
-    "headers": [
-        {
-            "source": "/(.*)",
-            "headers": [
-                {
-                    "key": "X-Content-Type-Options",
-                    "value": "nosniff"
-                },
-                {
-                    "key": "X-Frame-Options",
-                    "value": "DENY"
-                },
-                {
-                    "key": "X-XSS-Protection",
-                    "value": "1; mode=block"
-                },
-                {
-                    "key": "Referrer-Policy",
-                    "value": "strict-origin-when-cross-origin"
-                },
-                {
-                    "key": "Permissions-Policy",
-                    "value": "camera=(), microphone=(), geolocation=()"
-                }
-            ]
         }
     ]
 }
