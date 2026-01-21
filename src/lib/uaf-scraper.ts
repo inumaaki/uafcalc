@@ -35,7 +35,7 @@ export class UAFScraper {
     private async getLegacyCourses(regNumber: string): Promise<CourseRow[]> {
         try {
             // 1. Initial GET to fetch ViewState
-            const initialResponse = await axios.get(CONFIG.LEGACY_URL, {
+            const initialResponse = await axios.get(CONFIG.LEGACY_DEFAULT, {
                 headers: { 'Cache-Control': 'no-cache' }
             });
 
