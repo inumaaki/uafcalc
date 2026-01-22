@@ -182,9 +182,12 @@ export default function ClassResult() {
     endAG.number.length >= 1;
 
   return (
-    <Layout className={results.length > 0 ? "max-w-none px-0" : ""}>
+    <Layout
+      fullWidth={results.length > 0}
+      className={results.length > 0 ? "px-2 md:px-4" : ""}
+    >
       <div className={cn(
-        "flex flex-col items-center justify-center gap-12 transition-all duration-500",
+        "flex flex-col items-center justify-center gap-6 transition-all duration-500",
         results.length > 0 ? "min-h-0 py-8 p-0" : "min-h-[85vh] p-4 md:p-8"
       )}>
         <div className={cn(
@@ -312,8 +315,10 @@ export default function ClassResult() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              // CONTAINER SPACING: Adjust 'mb-8' (bottom space) and 'max-w-4xl' (width)
+              className="w-full max-w-5xl mx-auto px-4 md:px-8 mb-8"
             >
-              <Card className="w-full border shadow-sm rounded-none md:rounded-lg md:border-x">
+              <Card className="w-full border shadow-sm rounded-xl">
                 <CardHeader className="px-4 py-4 md:px-8">
                   <div className="flex items-center justify-between flex-wrap gap-4">
                     <div>
@@ -344,33 +349,38 @@ export default function ClassResult() {
                     <Table>
                       <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                         <TableRow>
-                          <TableHead className="h-9 w-8 px-1 text-center text-[10px] md:text-xs text-muted-foreground">#</TableHead>
-                          <TableHead className="h-9 w-24 px-1 text-[10px] md:text-xs">Registration</TableHead>
-                          <TableHead className="h-9 px-2 text-[10px] md:text-sm">Name</TableHead>
-                          <TableHead className="h-9 w-12 px-1 text-center text-[10px] md:text-xs">GPA</TableHead>
-                          <TableHead className="h-9 w-12 px-1 text-center text-[10px] md:text-xs">CGPA</TableHead>
-                          <TableHead className="h-9 w-10 px-1"></TableHead>
+                          <TableHead className="h-9 w-8 px-1 md:px-4 text-center text-[10px] md:text-xs text-muted-foreground">#</TableHead>
+                          {/* GAP REDUCTION: Removed right padding (pr-0) and used w-[1%] to shrink col to content */}
+                          <TableHead className="h-9 w-24 md:w-[13%] pl-1 md:pl-2 pr-0 text-[10px] md:text-xs">Registration</TableHead>
+                          {/* GAP REDUCTION: Removed left padding (pl-0) from Name */}
+                          <TableHead className="h-9 pl-0 pr-2 md:pr-2 text-[10px] md:text-sm">Name</TableHead>
+                          <TableHead className="h-9 w-12 md:w-20 px-1 md:px-4 text-center text-[10px] md:text-xs">GPA</TableHead>
+                          <TableHead className="h-9 w-12 md:w-20 px-1 md:px-4 text-center text-[10px] md:text-xs">CGPA</TableHead>
+                          <TableHead className="h-9 w-10 md:w-16 px-1"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {displayData.map((student, index) => (
-                          <TableRow key={student.registrationNo} className="hover:bg-muted/50 h-10">
-                            <TableCell className="py-2 px-1 text-center text-[10px] md:text-sm text-muted-foreground">{index + 1}</TableCell>
-                            <TableCell className="py-2 px-1 font-mono text-[10px] md:text-xs whitespace-nowrap">{student.registrationNo}</TableCell>
-                            <TableCell className="py-2 px-2 text-[11px] md:text-sm font-medium max-w-[80px] md:max-w-[200px] overflow-x-auto whitespace-nowrap scrollbar-hide">
+                          // ROW SPACING: Adjust 'h-8' (height) and 'py-1' (padding) to bring elements closer
+                          <TableRow key={student.registrationNo} className="hover:bg-muted/50 h-8">
+                            <TableCell className="py-1 px-1 md:px-4 text-center text-[10px] md:text-sm text-muted-foreground">{index + 1}</TableCell>
+                            {/* GAP REDUCTION: padding-right 0 */}
+                            <TableCell className="py-1 pl-1 md:pl-2 pr-0 font-mono text-[10px] md:text-xs whitespace-nowrap">{student.registrationNo}</TableCell>
+                            {/* GAP REDUCTION: padding-left 0 */}
+                            <TableCell className="py-1 pl-0 pr-2 md:pr-2 text-[11px] md:text-sm font-medium max-w-[80px] md:max-w-[200px] overflow-x-auto whitespace-nowrap scrollbar-hide">
                               {student.name}
                             </TableCell>
-                            <TableCell className="py-2 px-1 text-center font-bold text-blue-600 text-[11px] md:text-sm">
+                            <TableCell className="py-1 px-1 md:px-4 text-center font-bold text-blue-600 text-[11px] md:text-sm">
                               {student.semesters.length > 0 ? student.semesters[0].gpa.toFixed(2) : "-"}
                             </TableCell>
                             <TableCell className={cn(
-                              "py-2 px-1 text-center font-bold text-[11px] md:text-sm",
+                              "py-1 px-1 md:px-4 text-center font-bold text-[11px] md:text-sm",
                               student.cgpa >= 3 ? "text-emerald-600" :
                                 student.cgpa >= 2 ? "text-yellow-600" : "text-red-500"
                             )}>
                               {student.cgpa.toFixed(2)}
                             </TableCell>
-                            <TableCell className="py-2 px-1 text-right">
+                            <TableCell className="py-1 px-1 text-right">
                               <Button
                                 variant="ghost"
                                 size="icon"
