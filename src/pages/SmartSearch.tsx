@@ -272,17 +272,17 @@ export default function SmartSearch() {
                     >
 
                         {/* Header */}
-                        <div className={cn("text-center", hasSearched ? "lg:text-left" : "mb-8")}>
+                        <div className={cn("text-center", hasSearched ? "lg:text-left" : "mb-4")}>
                             {!hasSearched && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4"
+                                    className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-3"
                                 >
-                                    <Filter className="h-7 w-7" />
+                                    <Filter className="h-6 w-6" />
                                 </motion.div>
                             )}
-                            <h1 className={cn("font-bold flex items-center justify-center gap-2", hasSearched ? "text-2xl lg:justify-start" : "text-3xl")}>
+                            <h1 className={cn("font-bold flex items-center justify-center gap-2", hasSearched ? "text-2xl lg:justify-start" : "text-2xl")}>
                                 {hasSearched && (
                                     <div className="p-2 bg-primary/10 rounded-lg text-primary">
                                         <Filter className="h-6 w-6" />
@@ -291,15 +291,15 @@ export default function SmartSearch() {
                                 Smart Search
                             </h1>
                             <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                                Analyze specific courses across a batch of students. upload a list or search by range.
+                                Analyze specific courses across a batch of students.
                             </p>
                         </div>
 
                         {/* Main Controls Card */}
                         <Card className={cn("border-primary/20 shadow-md transition-all", hasSearched ? "" : "shadow-xl border-primary/30")}>
                             {!hasSearched && (
-                                <CardHeader className="text-center pb-2">
-                                    <CardTitle className="font-semibold tracking-tight text-2xl">
+                                <CardHeader className="text-center pb-2 pt-4">
+                                    <CardTitle className="font-semibold tracking-tight text-xl">
                                         Search Parameters
                                     </CardTitle>
                                     <CardDescription>
@@ -316,9 +316,9 @@ export default function SmartSearch() {
                                 </CardHeader>
                             )}
 
-                            <CardContent className="space-y-4 pb-4 pt-4">
+                            <CardContent className="space-y-3 pb-4 pt-2">
                                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                    <TabsList className={cn("grid w-full mb-4", hasSearched ? "h-9 grid-cols-2" : "h-10 max-w-md mx-auto grid-cols-2 mb-6")}>
+                                    <TabsList className={cn("grid w-full mb-3", hasSearched ? "h-9 grid-cols-2" : "h-9 max-w-sm mx-auto grid-cols-2 mb-4")}>
                                         <TabsTrigger value="range" className={cn("gap-2", hasSearched ? "text-xs" : "text-sm")}>
                                             <ArrowRightLeft className="h-4 w-4" />
                                             AG Range
@@ -329,15 +329,15 @@ export default function SmartSearch() {
                                         </TabsTrigger>
                                     </TabsList>
 
-                                    <TabsContent value="range" className="mt-0 space-y-4">
+                                    <TabsContent value="range" className="mt-0 space-y-3">
                                         <div className="grid grid-cols-2 gap-2">
                                             <div className="space-y-1">
                                                 <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Start AG</Label>
-                                                <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleFetch} className={cn("h-9", !hasSearched && "h-11 text-lg w-full max-w-[290px] md:w-auto")} />
+                                                <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleFetch} className={cn("h-9", !hasSearched && "h-10 text-base w-full max-w-[290px] md:w-auto")} />
                                             </div>
                                             <div className="space-y-1">
                                                 <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">End AG</Label>
-                                                <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleFetch} className={cn("h-9", !hasSearched && "h-11 text-lg w-full max-w-[290px] md:w-auto")} />
+                                                <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleFetch} className={cn("h-9", !hasSearched && "h-10 text-base w-full max-w-[290px] md:w-auto")} />
                                             </div>
                                         </div>
                                     </TabsContent>
@@ -347,17 +347,17 @@ export default function SmartSearch() {
                                             htmlFor="excel-upload"
                                             className={cn(
                                                 "flex flex-col items-center justify-center w-full border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors border-primary/20",
-                                                hasSearched ? "h-24" : "h-32"
+                                                hasSearched ? "h-24" : "h-28"
                                             )}
                                         >
-                                            <Upload className={cn("text-muted-foreground", hasSearched ? "w-6 h-6 mb-2" : "w-8 h-8 mb-3")} />
+                                            <Upload className={cn("text-muted-foreground", hasSearched ? "w-6 h-6 mb-2" : "w-8 h-8 mb-2")} />
                                             <span className="text-xs text-muted-foreground font-semibold">Click to upload .xlsx/.csv</span>
                                             <Input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelUpload} disabled={loading} />
                                         </Label>
                                     </TabsContent>
                                 </Tabs>
 
-                                <div className="space-y-2">
+                                <div className="space-y-1.5">
                                     <div className="flex items-center gap-2">
                                         <BookOpen className="h-4 w-4 text-muted-foreground" />
                                         <Label className="text-xs font-semibold">Filter Subject</Label>
@@ -370,17 +370,17 @@ export default function SmartSearch() {
                                             setGradeFilter(null);
                                         }}
                                         onKeyDown={(e) => e.key === 'Enter' && activeTab === 'range' && handleFetch()}
-                                        className={cn("text-sm", hasSearched ? "h-9" : "h-11")}
+                                        className={cn("text-sm", hasSearched ? "h-9" : "h-10")}
                                     />
                                     <p className="text-[10px] text-muted-foreground">Type subject name to analyze grades.</p>
                                 </div>
 
                                 {activeTab === 'range' && (
                                     <Button
-                                        size={hasSearched ? "sm" : "lg"}
+                                        size={hasSearched ? "sm" : "default"}
                                         onClick={handleFetch}
                                         disabled={!isRangeValid || loading || !courseFilter}
-                                        className={cn("w-full font-bold", !hasSearched && "mt-2")}
+                                        className={cn("w-full font-bold h-9", !hasSearched && "mt-1")}
                                     >
                                         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
                                         {loading ? "Scanning..." : "Fetch Results"}
