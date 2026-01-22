@@ -11,6 +11,7 @@ import { StudentOverview } from "@/components/results/StudentOverview";
 import { formatAGNumber, calculateGPA, calculateCGPA } from "@/lib/gpaCalculator";
 import { gradingScale } from "@/config/semesterMap";
 import type { StudentResult, SemesterResult, Subject } from "@/types/result";
+import { cn } from "@/lib/utils";
 
 
 
@@ -133,146 +134,153 @@ export default function IndividualResult() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto min-h-[82vh] flex flex-col justify-center">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4">
-            <UserCheck className="h-7 w-7" />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Individual Result
-          </h1>
-          <p className="text-muted-foreground">
-            Enter your AG number to fetch your complete result and GPA
-          </p>
-        </motion.div>
-
-        {/* Search Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="mb-8 max-w-5xl mx-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5 text-primary" />
-                Enter AG Number
-              </CardTitle>
-              <CardDescription>
-                Format: YYYY-AG-XXXX (e.g., 2022-ag-7745)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <AGNumberInput
-                  value={agNumber}
-                  onChange={setAgNumber}
-                  onEnter={handleFetch}
-                  className="flex-1 w-full"
-                />
-                <Button
-                  size="lg"
-                  onClick={handleFetch}
-                  disabled={!isValid || loading}
-                  className="w-full sm:w-auto min-w-[140px]"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Fetching...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4 mr-2" />
-                      Fetch Result
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {/* Quick Example */}
-              <p className="text-xs text-muted-foreground mt-3 text-left">
-                Example: Enter <span className="font-mono">2022</span> in year and{" "}
-                <span className="font-mono">7745</span> in number field
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Error Alert */}
-        <AnimatePresence>
-          {error && (
+      <div className={cn(
+        "flex flex-col items-center justify-center p-4 md:p-8 transition-all duration-500",
+        result ? "min-h-0 py-8" : "min-h-[85vh]"
+      )}>
+        <div className={cn(
+          "w-full mx-auto transition-all duration-500",
+          result ? "max-w-7xl" : "max-w-lg"
+        )}>
+          {/* Header & Search - Always Compact */}
+          <div className="max-w-lg mx-auto w-full">
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              className="text-center mb-6"
             >
-              <Alert variant="destructive" className="mb-6">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Loading State */}
-        <AnimatePresence>
-          {loading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-16"
-            >
-              <div className="relative">
-                <div className="h-16 w-16 rounded-full border-4 border-muted"></div>
-                <div className="absolute top-0 h-16 w-16 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-3">
+                <UserCheck className="h-6 w-6" />
               </div>
-              <p className="mt-4 text-muted-foreground">
-                Fetching result from LMS...
+              <h1 className="text-2xl font-bold text-foreground mb-1">
+                Individual Result
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Enter your complete AG number to fetch result.
               </p>
             </motion.div>
-          )}
-        </AnimatePresence>
 
-        {/* Result Display */}
-        <AnimatePresence>
-          {result && !loading && (
+            {/* Search Card */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
             >
-              {/* Student Overview */}
-              <StudentOverview student={result} />
+              <Card className="mb-8 border-primary/20 shadow-xl">
+                <CardHeader className="text-center pb-2 pt-4">
+                  <CardTitle className="text-xl flex items-center justify-center gap-2">
+                    <Search className="h-4 w-4 text-primary" />
+                    Enter parameters
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Format: YYYY-AG-XXXX
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  <div className="space-y-4">
+                    <div className="flex justify-center">
+                      <AGNumberInput
+                        value={agNumber}
+                        onChange={setAgNumber}
+                        onEnter={handleFetch}
+                        className="w-full"
+                      />
+                    </div>
 
-              {/* Semester Results */}
-              <div className="space-y-4">
-                <h2 className="text-xl font-bold text-foreground">
-                  Semester Results
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {result.semesters.map((semester, index) => (
-                    <ResultCard
-                      key={index}
-                      semester={semester}
-                      index={index}
-                      onAddCourse={handleAddCourse}
-                      onDeleteCourse={handleDeleteCourse}
-                    />
-                  ))}
-                </div>
-              </div>
+                    <Button
+                      size="default"
+                      onClick={handleFetch}
+                      disabled={!isValid || loading}
+                      className="w-full h-9 font-bold"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Fetching...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="h-4 w-4 mr-2" />
+                          Fetch Result
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
-          )}
-        </AnimatePresence>
+
+            {/* Error Alert */}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <Alert variant="destructive" className="mb-6">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Loading State */}
+            <AnimatePresence>
+              {loading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center justify-center py-16"
+                >
+                  <div className="relative">
+                    <div className="h-16 w-16 rounded-full border-4 border-muted"></div>
+                    <div className="absolute top-0 h-16 w-16 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+                  </div>
+                  <p className="mt-4 text-muted-foreground">
+                    Fetching result from LMS...
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Result Display - Full Width */}
+          <AnimatePresence>
+            {result && !loading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-6"
+              >
+                {/* Student Overview */}
+                <StudentOverview student={result} />
+
+                {/* Semester Results */}
+                <div className="space-y-4">
+                  <h2 className="text-xl font-bold text-foreground">
+                    Semester Results
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {result.semesters.map((semester, index) => (
+                      <ResultCard
+                        key={index}
+                        semester={semester}
+                        index={index}
+                        onAddCourse={handleAddCourse}
+                        onDeleteCourse={handleDeleteCourse}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </Layout>
   );

@@ -318,7 +318,7 @@ export default function SmartSearch() {
 
                             <CardContent className="space-y-3 pb-4 pt-2">
                                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                    <TabsList className={cn("grid w-full mb-3", hasSearched ? "h-9 grid-cols-2" : "h-9 max-w-sm mx-auto grid-cols-2 mb-4")}>
+                                    <TabsList className={cn("grid w-full mb-6 bg-muted/40 p-1.5 rounded-xl border border-border/50", hasSearched ? "h-12 grid-cols-2" : "h-12 max-w-sm mx-auto grid-cols-2")}>
                                         <TabsTrigger value="range" className={cn("gap-2", hasSearched ? "text-xs" : "text-sm")}>
                                             <ArrowRightLeft className="h-4 w-4" />
                                             AG Range
@@ -398,11 +398,11 @@ export default function SmartSearch() {
                                     exit={{ opacity: 0, height: 0 }}
                                     className="bg-card border rounded-md p-3 shadow-sm"
                                 >
-                                    <div className="flex justify-between text-xs mb-1">
+                                    <div className="flex justify-between text-sm font-medium mb-2">
                                         <span>Processing...</span>
                                         <span className="font-mono">{Math.round(progress)}%</span>
                                     </div>
-                                    <div className="bg-muted rounded-full h-1.5 overflow-hidden">
+                                    <div className="bg-muted rounded-full h-3 overflow-hidden">
                                         <motion.div
                                             className="bg-primary h-full"
                                             initial={{ width: 0 }}

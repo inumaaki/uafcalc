@@ -182,138 +182,139 @@ export default function ClassResult() {
     endAG.number.length >= 1;
 
   return (
-    <Layout>
-      <div className="max-w-6xl mx-auto min-h-[81vh] flex flex-col justify-center">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4">
-            <Users className="h-7 w-7" />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Class Result
-          </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Fetch and analyze results for an entire class sequence or upload a list.
-          </p>
-        </motion.div>
-
-        {/* Tabs Controls */}
-        <Tabs defaultValue="range" className="mb-8">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 h-10 mb-6">
-            <TabsTrigger value="range" className="gap-2">
-              <ArrowRightLeft className="h-4 w-4" />
-              AG Range
-            </TabsTrigger>
-            <TabsTrigger value="excel" className="gap-2">
-              <Download className="h-4 w-4" />
-              Excel Upload
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="range" className="mt-0">
-            <Card className="border-primary/20 shadow-lg">
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-2xl">AG Number Range</CardTitle>
-                <CardDescription>Enter starting and ending AG numbers to fetch results for all students in between</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="flex flex-col md:flex-row items-center md:items-end justify-center gap-4">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-xs font-medium text-muted-foreground">Start AG</span>
-                    <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleRangeFetch} className="w-full max-w-[290px] md:w-auto" />
-                  </div>
-
-                  <div className="h-11 flex items-center justify-center hidden md:flex">
-                    <span className="text-2xl font-bold text-muted-foreground pb-1">→</span>
-                  </div>
-
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-xs font-medium text-muted-foreground">End AG</span>
-                    <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleRangeFetch} className="w-full max-w-[290px] md:w-auto" />
-                  </div>
-
-                  <Button
-                    className="w-full max-w-[290px] md:w-auto h-11 font-bold px-8 mt-2 md:mt-0"
-                    onClick={handleRangeFetch}
-                    disabled={!isRangeValid || loading}
-                  >
-                    {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Search className="mr-2 h-4 w-4" />}
-                    Fetch All
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="excel" className="mt-0">
-            <Card className="border-primary/20 shadow-lg">
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-2xl">Upload Student List</CardTitle>
-                <CardDescription>Upload an Excel or CSV file containing a list of Registration numbers (column "AG")</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="max-w-md mx-auto flex flex-col gap-4">
-                  <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="excel-upload" className="sr-only">Upload .xlsx / .csv</Label>
-                    <div className="flex items-center justify-center w-full">
-                      <Label
-                        htmlFor="excel-upload"
-                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors border-primary/20"
-                      >
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload className="w-8 h-8 mb-3 text-muted-foreground" />
-                          <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                          <p className="text-xs text-muted-foreground">.xlsx or .csv files</p>
-                        </div>
-                        <Input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelUpload} disabled={loading} />
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Progress */}
-        <AnimatePresence>
-          {loading && (
+    <Layout className={results.length > 0 ? "max-w-none px-0" : ""}>
+      <div className={cn(
+        "flex flex-col items-center justify-center gap-12 transition-all duration-500",
+        results.length > 0 ? "min-h-0 py-8 p-0" : "min-h-[85vh] p-4 md:p-8"
+      )}>
+        <div className={cn(
+          "w-full mx-auto transition-all duration-500",
+          results.length > 0 ? "w-full" : "max-w-lg"
+        )}>
+          {/* Header & Controls - Always Compact */}
+          <div className="max-w-lg mx-auto w-full">
+            {/* Header */}
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-8 px-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={cn("text-center", results.length > 0 ? "mb-4" : "mb-6")}
             >
-              <div className="bg-muted rounded-full h-2 overflow-hidden">
-                <motion.div
-                  className="bg-primary h-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.3 }}
-                />
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-3">
+                <Users className="h-6 w-6" />
               </div>
-              <p className="text-sm text-muted-foreground text-center mt-2">
-                Fetching Results... {Math.round(progress)}%
+              <h1 className="text-2xl font-bold text-foreground mb-1">
+                Class Result
+              </h1>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                Fetch and analyze results for an entire class sequence or upload a list.
               </p>
             </motion.div>
-          )}
-        </AnimatePresence>
 
-        {/* Stats Bar - Removed as per request */}
+            {/* Controls */}
+            <motion.div
+              layout
+              className="w-full"
+            >
+              <Tabs defaultValue="range" className="w-full">
+                <TabsList className="grid w-full h-12 grid-cols-2 mb-6 bg-muted/40 p-1.5 rounded-xl border border-border/50">
+                  <TabsTrigger value="range" className="gap-2 text-sm">
+                    <ArrowRightLeft className="h-3.5 w-3.5" />
+                    AG Range
+                  </TabsTrigger>
+                  <TabsTrigger value="excel" className="gap-2 text-sm">
+                    <Download className="h-3.5 w-3.5" />
+                    Excel Upload
+                  </TabsTrigger>
+                </TabsList>
 
-        {/* Results Table */}
+                <TabsContent value="range" className="mt-0">
+                  <Card className="border-primary/20 shadow-xl">
+                    <CardHeader className="text-center pb-2 pt-4">
+                      <CardTitle className="text-xl">AG Number Range</CardTitle>
+                      <CardDescription className="text-xs">Enter start and end AG numbers to fetch batch.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pb-4">
+                      <div className="flex flex-col gap-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Start</span>
+                            <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleRangeFetch} className="w-full h-9 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">End</span>
+                            <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleRangeFetch} className="w-full h-9 text-sm" />
+                          </div>
+                        </div>
+
+                        <Button
+                          className="w-full h-9 font-bold mt-1"
+                          onClick={handleRangeFetch}
+                          disabled={!isRangeValid || loading}
+                        >
+                          {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Search className="mr-2 h-4 w-4" />}
+                          Fetch All
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="excel" className="mt-0">
+                  <Card className="border-primary/20 shadow-xl">
+                    <CardHeader className="text-center pb-2 pt-4">
+                      <CardTitle className="text-xl">Upload Student List</CardTitle>
+                      <CardDescription className="text-xs">Upload Excel/CSV with 'AG' column.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pb-4">
+                      <Label
+                        htmlFor="excel-upload"
+                        className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors border-primary/20"
+                      >
+                        <Upload className="w-6 h-6 mb-2 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground font-semibold">Click to upload .xlsx/.csv</span>
+                        <Input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelUpload} disabled={loading} />
+                      </Label>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </motion.div>
+          </div>
+
+          {/* Progress */}
+          <AnimatePresence>
+            {loading && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="w-full max-w-lg mt-4 px-1 mx-auto"
+              >
+                <div className="bg-muted rounded-full h-2.5 overflow-hidden">
+                  <motion.div
+                    className="bg-primary h-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground text-center mt-2">
+                  Fetching Results... {Math.round(progress)}%
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Result Display - Full Width */}
         <AnimatePresence>
           {results.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <Card>
-                <CardHeader>
+              <Card className="w-full border shadow-sm rounded-none md:rounded-lg md:border-x">
+                <CardHeader className="px-4 py-4 md:px-8">
                   <div className="flex items-center justify-between flex-wrap gap-4">
                     <div>
                       <CardTitle>
@@ -338,42 +339,45 @@ export default function ClassResult() {
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <Table>
-                      <TableHeader>
+                      <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                         <TableRow>
-                          <TableHead>#</TableHead>
-                          <TableHead>Registration</TableHead>
-                          <TableHead className="min-w-[140px]">Name</TableHead>
-                          <TableHead className="text-center">GPA</TableHead>
-                          <TableHead className="text-center">CGPA</TableHead>
-                          <TableHead className="w-10"></TableHead>
+                          <TableHead className="h-9 w-8 px-1 text-center text-[10px] md:text-xs text-muted-foreground">#</TableHead>
+                          <TableHead className="h-9 w-24 px-1 text-[10px] md:text-xs">Registration</TableHead>
+                          <TableHead className="h-9 px-2 text-[10px] md:text-sm">Name</TableHead>
+                          <TableHead className="h-9 w-12 px-1 text-center text-[10px] md:text-xs">GPA</TableHead>
+                          <TableHead className="h-9 w-12 px-1 text-center text-[10px] md:text-xs">CGPA</TableHead>
+                          <TableHead className="h-9 w-10 px-1"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {displayData.map((student, index) => (
-                          <TableRow key={student.registrationNo} className="hover:bg-muted/50">
-                            <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
-                            <TableCell className="font-mono whitespace-nowrap">{student.registrationNo}</TableCell>
-                            <TableCell className="min-w-[140px]">{student.name}</TableCell>
-                            <TableCell className="text-center font-bold text-blue-600">
+                          <TableRow key={student.registrationNo} className="hover:bg-muted/50 h-10">
+                            <TableCell className="py-2 px-1 text-center text-[10px] md:text-sm text-muted-foreground">{index + 1}</TableCell>
+                            <TableCell className="py-2 px-1 font-mono text-[10px] md:text-xs whitespace-nowrap">{student.registrationNo}</TableCell>
+                            <TableCell className="py-2 px-2 text-[11px] md:text-sm font-medium max-w-[80px] md:max-w-[200px] overflow-x-auto whitespace-nowrap scrollbar-hide">
+                              {student.name}
+                            </TableCell>
+                            <TableCell className="py-2 px-1 text-center font-bold text-blue-600 text-[11px] md:text-sm">
                               {student.semesters.length > 0 ? student.semesters[0].gpa.toFixed(2) : "-"}
                             </TableCell>
                             <TableCell className={cn(
-                              "text-center font-bold",
+                              "py-2 px-1 text-center font-bold text-[11px] md:text-sm",
                               student.cgpa >= 3 ? "text-emerald-600" :
                                 student.cgpa >= 2 ? "text-yellow-600" : "text-red-500"
                             )}>
                               {student.cgpa.toFixed(2)}
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="py-2 px-1 text-right">
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-primary"
                                 onClick={() => setSelectedStudent(student)}
                               >
-                                <Search className="h-4 w-4 text-muted-foreground" />
+                                <Search className="h-4 w-4" />
                               </Button>
                             </TableCell>
                           </TableRow>
