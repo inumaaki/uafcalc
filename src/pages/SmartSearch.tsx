@@ -1,17 +1,21 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, Download, Filter, BookOpen, XCircle, Info } from "lucide-react";
+import { Search, Loader2, Download, Filter, BookOpen, XCircle, Info, Upload, ArrowRightLeft } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { AGNumberInput } from "@/components/ui/AGNumberInput";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generateAGRange, parseAGNumber } from "@/lib/gpaCalculator";
 import type { StudentResult, Subject } from "@/types/result";
 import { uafScraper } from "@/lib/uaf-scraper";
 import { CourseDetailModal } from "@/components/results/CourseDetailModal";
+import { AGReviewDialog } from "@/components/results/AGReviewDialog";
+import * as XLSX from 'xlsx';
 import { cn } from "@/lib/utils";
 
 export default function SmartSearch() {
@@ -23,6 +27,8 @@ export default function SmartSearch() {
     const [results, setResults] = useState<StudentResult[]>([]);
     const [progress, setProgress] = useState(0);
     const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+    const [pendingAGs, setPendingAGs] = useState<string[]>([]);
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
 
     const handleFetch = async () => {
         if (!startAG.year || !startAG.number || !endAG.year || !endAG.number) return;
@@ -54,6 +60,74 @@ export default function SmartSearch() {
 
         setLoading(false);
     };
+
+    const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+                const agRegex = /\b\d{4}-ag-\d+\b/gi;
+                const foundAGs: string[] = [];
+
+                rows.forEach(row => {
+                    row.forEach(cell => {
+                        if (typeof cell === 'string') {
+                            const matches = cell.match(agRegex);
+                            if (matches) {
+                                matches.forEach(m => foundAGs.push(m.toLowerCase()));
+                            }
+                        }
+                    });
+                });
+
+                const uniqueAGs = Array.from(new Set(foundAGs));
+
+                if (uniqueAGs.length > 0) {
+                    setPendingAGs(uniqueAGs);
+                    setIsReviewOpen(true);
+                } else {
+                    alert("No valid AG numbers (format: YYYY-ag-XXXX) found in the file.");
+                }
+            } catch (error) {
+                console.error("Error parsing Excel:", error);
+            }
+            e.target.value = '';
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    const handleExcelFetch = async (excelAGs: string[]) => {
+        setLoading(true);
+        setProgress(0);
+        setResults([]);
+        setGradeFilter(null);
+
+        await uafScraper.getBatchResults(excelAGs, (prog, result) => {
+            setProgress(prog);
+            if (result) {
+                setResults(prev => {
+                    const newResults = [...prev, result];
+                    return newResults.sort((a, b) => {
+                        const agA = parseAGNumber(a.registrationNo);
+                        const agB = parseAGNumber(b.registrationNo);
+                        if (!agA || !agB) return 0;
+                        if (agA.year !== agB.year) return parseInt(agA.year) - parseInt(agB.year);
+                        return parseInt(agA.number) - parseInt(agB.number);
+                    });
+                });
+            }
+        });
+
+        setLoading(false);
+    }
 
     const isRangeValid =
         startAG.year.length === 4 &&
@@ -90,11 +164,6 @@ export default function SmartSearch() {
         const counts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
         courseFilteredResults.forEach(({ match }) => {
             if (match) {
-                // Normalize grade (remove +/-, map P to null or ignore?)
-                // Assuming standard grades A, B, C, D, F.
-                // If grade is "A+" treat as "A"? Or keep discrete? 
-                // Let's use the first letter for grouping (Simple A, B, C..) or exact matches?
-                // User asked for "A, B, C, D, F".
                 const grade = match.grade.charAt(0).toUpperCase();
                 if (counts[grade] !== undefined) counts[grade]++;
             }
@@ -107,8 +176,6 @@ export default function SmartSearch() {
         if (!gradeFilter) return courseFilteredResults;
         return courseFilteredResults.filter(({ match }) => {
             if (!match) return false;
-            // Match first letter to cover A+, A- etc if they exist, or exact match?
-            // The stats grouped by first letter, so filter should too.
             return match.grade.charAt(0).toUpperCase() === gradeFilter;
         });
     }, [courseFilteredResults, gradeFilter]);
@@ -150,7 +217,7 @@ export default function SmartSearch() {
                         Smart Search
                     </h1>
                     <p className="text-muted-foreground max-w-2xl mx-auto">
-                        Analyze specific courses across a batch of students. Filter by course name or code to see comparable performance.
+                        Analyze specific courses across a batch of students. upload a list or search by range.
                     </p>
                 </motion.div>
 
@@ -163,18 +230,86 @@ export default function SmartSearch() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {/* Range Inputs */}
-                        <div className="flex flex-col md:flex-row items-center md:items-end justify-center gap-4">
-                            <div className="flex flex-col items-center gap-1">
-                                <span className="text-xs font-medium text-muted-foreground">Start AG</span>
-                                <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleFetch} className="w-full max-w-[290px] md:w-auto" />
+
+                        <Tabs defaultValue="range" className="w-full">
+                            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 h-10 mb-6">
+                                <TabsTrigger value="range" className="gap-2">
+                                    <ArrowRightLeft className="h-4 w-4" />
+                                    AG Range
+                                </TabsTrigger>
+                                <TabsTrigger value="excel" className="gap-2">
+                                    <Download className="h-4 w-4" />
+                                    Excel Upload
+                                </TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="range" className="mt-0 space-y-6">
+                                {/* Range Inputs */}
+                                <div className="flex flex-col md:flex-row items-center md:items-end justify-center gap-4">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span className="text-xs font-medium text-muted-foreground">Start AG</span>
+                                        <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleFetch} className="w-full max-w-[290px] md:w-auto" />
+                                    </div>
+                                    <div className="h-11 flex items-center justify-center hidden md:flex">
+                                        <span className="text-2xl font-bold text-muted-foreground pb-1">→</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span className="text-xs font-medium text-muted-foreground">End AG</span>
+                                        <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleFetch} className="w-full max-w-[290px] md:w-auto" />
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-center">
+                                    <Button
+                                        size="lg"
+                                        onClick={handleFetch}
+                                        disabled={!isRangeValid || loading}
+                                        className="w-full max-w-[200px] font-bold shadow-lg shadow-primary/20"
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Scanning...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Search className="h-4 w-4 mr-2" />
+                                                Run Smart Search
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </TabsContent>
+
+                            <TabsContent value="excel" className="mt-0">
+                                <div className="max-w-md mx-auto flex flex-col gap-4">
+                                    <div className="grid w-full items-center gap-1.5">
+                                        <Label htmlFor="excel-upload" className="sr-only">Upload .xlsx / .csv</Label>
+                                        <div className="flex items-center justify-center w-full">
+                                            <Label
+                                                htmlFor="excel-upload"
+                                                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors border-primary/20"
+                                            >
+                                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                    <Upload className="w-8 h-8 mb-3 text-muted-foreground" />
+                                                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                                                    <p className="text-xs text-muted-foreground">.xlsx or .csv files</p>
+                                                </div>
+                                                <Input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelUpload} disabled={loading} />
+                                            </Label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+
+                        {/* Divider */}
+                        <div className="relative py-2">
+                            <div className="absolute inset-0 flex items-center">
+                                <span className="w-full border-t border-muted" />
                             </div>
-                            <div className="h-11 flex items-center justify-center hidden md:flex">
-                                <span className="text-2xl font-bold text-muted-foreground pb-1">→</span>
-                            </div>
-                            <div className="flex flex-col items-center gap-1">
-                                <span className="text-xs font-medium text-muted-foreground">End AG</span>
-                                <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleFetch} className="w-full max-w-[290px] md:w-auto" />
+                            <div className="relative flex justify-center text-xs uppercase">
+                                <span className="bg-card px-2 text-muted-foreground">Then Filter Results</span>
                             </div>
                         </div>
 
@@ -188,9 +323,8 @@ export default function SmartSearch() {
                                 value={courseFilter}
                                 onChange={(e) => {
                                     setCourseFilter(e.target.value);
-                                    setGradeFilter(null); // Reset grade filter when course changes
+                                    setGradeFilter(null);
                                 }}
-                                onKeyDown={(e) => e.key === "Enter" && handleFetch()}
                                 className="pl-9 h-11 border-primary/30 focus-visible:ring-primary w-full"
                             />
                             <p className="text-xs text-muted-foreground mt-1.5 text-center">
@@ -198,29 +332,10 @@ export default function SmartSearch() {
                             </p>
                         </div>
 
-                        <div className="flex flex-col items-center gap-4 pt-2">
-                            <Button
-                                size="lg"
-                                onClick={handleFetch}
-                                disabled={!isRangeValid || loading}
-                                className="w-full max-w-[200px] font-bold shadow-lg shadow-primary/20"
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Scanning...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Search className="h-4 w-4 mr-2" />
-                                        Run Smart Search
-                                    </>
-                                )}
-                            </Button>
-
-                            {/* Progress Bar (MOVED INSIDE CARD for single page fit) */}
-                            <AnimatePresence>
-                                {loading && (
+                        {/* Progress Bar (Visible for both) */}
+                        <AnimatePresence>
+                            {loading && (
+                                <div className="flex justify-center pt-4">
                                     <motion.div
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: "auto" }}
@@ -239,9 +354,9 @@ export default function SmartSearch() {
                                             Processing... {Math.round(progress)}%
                                         </p>
                                     </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
+                                </div>
+                            )}
+                        </AnimatePresence>
                     </CardContent>
                 </Card>
 
@@ -386,6 +501,16 @@ export default function SmartSearch() {
                     isOpen={!!selectedSubject}
                     onClose={() => setSelectedSubject(null)}
                     course={selectedSubject}
+                />
+
+                <AGReviewDialog
+                    isOpen={isReviewOpen}
+                    initialAGs={pendingAGs}
+                    onClose={() => setIsReviewOpen(false)}
+                    onConfirm={(ags) => {
+                        setIsReviewOpen(false);
+                        handleExcelFetch(ags);
+                    }}
                 />
             </div>
         </Layout>
