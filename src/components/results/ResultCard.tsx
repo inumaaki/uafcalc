@@ -32,7 +32,7 @@ export function ResultCard({ semester, index, onAddCourse, onDeleteCourse }: Res
         <CardHeader className="bg-primary/5 border-b border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
                 {semester.semesterNumber > 0 ? semester.semesterNumber : "S"}
               </div>
               <div>
@@ -68,23 +68,23 @@ export function ResultCard({ semester, index, onAddCourse, onDeleteCourse }: Res
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="text-left p-2 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <th className="text-left p-1 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Course
                   </th>
-                  <th className="text-center p-2 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <th className="text-center p-1 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Hrs
                   </th>
-                  <th className="text-center p-2 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <th className="text-center p-1 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Marks
                   </th>
-                  <th className="text-center p-2 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <th className="text-center p-1 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Grade
                   </th>
-                  <th className="text-center p-2 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <th className="text-center p-1 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     GP
                   </th>
                   {onDeleteCourse && (
-                    <th className="text-center p-2 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider w-10">
+                    <th className="text-center p-1 md:p-3 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider w-10">
                     </th>
                   )}
                 </tr>
@@ -98,7 +98,7 @@ export function ResultCard({ semester, index, onAddCourse, onDeleteCourse }: Res
                     transition={{ delay: index * 0.1 + idx * 0.05 }}
                     className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
                   >
-                    <td className="p-2 md:p-3">
+                    <td className="p-1 md:p-3">
                       <div className="flex items-center gap-1.5 md:gap-2">
                         <span className="text-foreground font-medium text-xs md:text-sm">
                           {subject.code || "N/A"}
@@ -114,13 +114,13 @@ export function ResultCard({ semester, index, onAddCourse, onDeleteCourse }: Res
                         </div>
                       </div>
                     </td>
-                    <td className="p-2 md:p-3 text-center text-xs md:text-sm">
+                    <td className="p-1 md:p-3 text-center text-xs md:text-sm">
                       {subject.fullCreditHours || subject.creditHours}
                     </td>
-                    <td className="p-2 md:p-3 text-center text-xs md:text-sm font-medium">
+                    <td className="p-1 md:p-3 text-center text-xs md:text-sm font-medium">
                       {subject.marks || "-"}
                     </td>
-                    <td className="p-2 md:p-3 text-center">
+                    <td className="p-1 md:p-3 text-center">
                       <Badge
                         className={cn(
                           "font-bold text-[10px] md:text-xs px-1.5 py-0.5 md:px-2.5 md:py-0.5",
@@ -131,13 +131,13 @@ export function ResultCard({ semester, index, onAddCourse, onDeleteCourse }: Res
                         {subject.grade}
                       </Badge>
                     </td>
-                    <td className="p-2 md:p-3 text-center">
+                    <td className="p-1 md:p-3 text-center">
                       <span className="font-bold text-orange-600 text-xs md:text-sm">
                         {subject.gradePoints.toFixed(2)}
                       </span>
                     </td>
                     {onDeleteCourse && (
-                      <td className="p-2 md:p-3 text-center">
+                      <td className="p-1 md:p-3 text-center">
                         <button
                           onClick={() => onDeleteCourse(semester.semester, subject.code || "")}
                           className="p-1 hover:bg-destructive/10 rounded-full text-muted-foreground/70 hover:text-destructive transition-colors focus:outline-none focus:ring-2 focus:ring-destructive/50"

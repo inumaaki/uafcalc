@@ -330,7 +330,7 @@ export default function SmartSearch() {
                                     </TabsList>
 
                                     <TabsContent value="range" className="mt-0 space-y-3">
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                             <div className="space-y-1">
                                                 <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Start AG</Label>
                                                 <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleFetch} className={cn("h-9", !hasSearched && "h-10 text-base w-full max-w-[290px] md:w-auto")} />

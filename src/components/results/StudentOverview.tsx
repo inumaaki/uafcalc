@@ -15,7 +15,7 @@ export function StudentOverview({ student }: StudentOverviewProps) {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <Card className="overflow-hidden mx-4 md:mx-6">
+      <Card className="overflow-hidden">
         <div className="bg-gradient-to-r from-primary to-primary/80 p-6 text-primary-foreground">
           <div className="flex flex-col md:flex-row items-center gap-6">
             {/* Avatar */}

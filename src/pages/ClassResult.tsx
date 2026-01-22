@@ -238,7 +238,7 @@ export default function ClassResult() {
                     </CardHeader>
                     <CardContent className="pb-4">
                       <div className="flex flex-col gap-3">
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Start</span>
                             <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleRangeFetch} className="w-full h-9 text-sm" />

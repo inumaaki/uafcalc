@@ -135,7 +135,7 @@ export default function IndividualResult() {
   return (
     <Layout>
       <div className={cn(
-        "flex flex-col items-center justify-center p-4 md:p-8 transition-all duration-500",
+        "flex flex-col items-center justify-center p-2 md:p-8 transition-all duration-500",
         result ? "min-h-0 py-8" : "min-h-[85vh]"
       )}>
         <div className={cn(
