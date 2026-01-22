@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, Download, Filter, BookOpen, XCircle, Info, Upload, ArrowRightLeft } from "lucide-react";
+import { Search, Loader2, Download, Filter, BookOpen, XCircle, Info, Upload, ArrowRightLeft, Users } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { AGNumberInput } from "@/components/ui/AGNumberInput";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { generateAGRange, parseAGNumber } from "@/lib/gpaCalculator";
 import type { StudentResult, Subject } from "@/types/result";
 import { uafScraper } from "@/lib/uaf-scraper";
@@ -29,32 +30,55 @@ export default function SmartSearch() {
     const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
     const [pendingAGs, setPendingAGs] = useState<string[]>([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
+    const [activeTab, setActiveTab] = useState("range");
 
     const handleFetch = async () => {
+        if (!courseFilter) {
+            alert("Please enter a subject name to filter by (e.g., 'Database').");
+            return;
+        }
         if (!startAG.year || !startAG.number || !endAG.year || !endAG.number) return;
 
+        setHasSearched(true);
         setLoading(true);
         setProgress(0);
         setResults([]);
-        setGradeFilter(null); // Reset filter on new search
+        setGradeFilter(null);
 
         const startNum = parseInt(startAG.number);
         const endNum = parseInt(endAG.number);
         const agList = generateAGRange(startAG.year, startNum, startAG.year, endNum);
 
+        const filterLower = courseFilter.toLowerCase();
+
         await uafScraper.getBatchResults(agList, (prog, result) => {
             setProgress(prog);
             if (result) {
-                setResults(prev => {
-                    const newResults = [...prev, result];
-                    return newResults.sort((a, b) => {
-                        const agA = parseAGNumber(a.registrationNo);
-                        const agB = parseAGNumber(b.registrationNo);
-                        if (!agA || !agB) return 0;
-                        if (agA.year !== agB.year) return parseInt(agA.year) - parseInt(agB.year);
-                        return parseInt(agA.number) - parseInt(agB.number);
+                // strict content filtering
+                let matchFound = false;
+                const filteredSemesters = result.semesters.map(sem => {
+                    const matchedSubjects = sem.subjects.filter(sub =>
+                        sub.name.toLowerCase().includes(filterLower) ||
+                        sub.code.toLowerCase().includes(filterLower)
+                    );
+                    if (matchedSubjects.length > 0) matchFound = true;
+                    return { ...sem, subjects: matchedSubjects };
+                }).filter(sem => sem.subjects.length > 0);
+
+                if (matchFound) {
+                    const filteredResult = { ...result, semesters: filteredSemesters };
+                    setResults(prev => {
+                        const newResults = [...prev, filteredResult];
+                        return newResults.sort((a, b) => {
+                            const agA = parseAGNumber(a.registrationNo);
+                            const agB = parseAGNumber(b.registrationNo);
+                            if (!agA || !agB) return 0;
+                            if (agA.year !== agB.year) return parseInt(agA.year) - parseInt(agB.year);
+                            return parseInt(agA.number) - parseInt(agB.number);
+                        });
                     });
-                });
+                }
             }
         });
 
@@ -62,6 +86,11 @@ export default function SmartSearch() {
     };
 
     const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!courseFilter) {
+            alert("Please enter a subject name to filter by (e.g., 'Database') before uploading.");
+            e.target.value = '';
+            return;
+        }
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -105,24 +134,41 @@ export default function SmartSearch() {
     };
 
     const handleExcelFetch = async (excelAGs: string[]) => {
+        setHasSearched(true);
         setLoading(true);
         setProgress(0);
         setResults([]);
         setGradeFilter(null);
 
+        const filterLower = courseFilter.toLowerCase();
+
         await uafScraper.getBatchResults(excelAGs, (prog, result) => {
             setProgress(prog);
             if (result) {
-                setResults(prev => {
-                    const newResults = [...prev, result];
-                    return newResults.sort((a, b) => {
-                        const agA = parseAGNumber(a.registrationNo);
-                        const agB = parseAGNumber(b.registrationNo);
-                        if (!agA || !agB) return 0;
-                        if (agA.year !== agB.year) return parseInt(agA.year) - parseInt(agB.year);
-                        return parseInt(agA.number) - parseInt(agB.number);
+                // strict content filtering
+                let matchFound = false;
+                const filteredSemesters = result.semesters.map(sem => {
+                    const matchedSubjects = sem.subjects.filter(sub =>
+                        sub.name.toLowerCase().includes(filterLower) ||
+                        sub.code.toLowerCase().includes(filterLower)
+                    );
+                    if (matchedSubjects.length > 0) matchFound = true;
+                    return { ...sem, subjects: matchedSubjects };
+                }).filter(sem => sem.subjects.length > 0);
+
+                if (matchFound) {
+                    const filteredResult = { ...result, semesters: filteredSemesters };
+                    setResults(prev => {
+                        const newResults = [...prev, filteredResult];
+                        return newResults.sort((a, b) => {
+                            const agA = parseAGNumber(a.registrationNo);
+                            const agB = parseAGNumber(b.registrationNo);
+                            if (!agA || !agB) return 0;
+                            if (agA.year !== agB.year) return parseInt(agA.year) - parseInt(agB.year);
+                            return parseInt(agA.number) - parseInt(agB.number);
+                        });
                     });
-                });
+                }
             }
         });
 
@@ -158,7 +204,7 @@ export default function SmartSearch() {
         }).filter(item => item !== null) as { student: StudentResult, match: Subject | null }[];
     }, [results, courseFilter]);
 
-    // 2. Compute Stats (based on course filtered results)
+    // 2. Compute Stats
     const stats = useMemo(() => {
         if (!courseFilter) return null;
         const counts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
@@ -203,300 +249,303 @@ export default function SmartSearch() {
 
     return (
         <Layout>
-            <div className="max-w-6xl mx-auto min-h-[81vh] flex flex-col justify-center">
-                {/* Header */}
+            <div className={cn(
+                "flex flex-col items-center justify-center p-2 lg:p-4 overflow-hidden transition-all duration-500 ease-in-out",
+                hasSearched ? "h-[calc(100vh-theme(spacing.2))] lg:h-[calc(100vh-theme(spacing.20))]" : "min-h-[85vh]"
+            )}>
+
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-center mb-8"
+                    layout
+                    className={cn(
+                        "w-full mx-auto flex gap-4 h-full transition-all duration-500",
+                        hasSearched ? "max-w-7xl flex-col lg:flex-row" : "max-w-md md:max-w-2xl flex-col justify-center"
+                    )}
                 >
-                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4">
-                        <Filter className="h-7 w-7" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-foreground mb-2">
-                        Smart Search
-                    </h1>
-                    <p className="text-muted-foreground max-w-2xl mx-auto">
-                        Analyze specific courses across a batch of students. upload a list or search by range.
-                    </p>
-                </motion.div>
 
-                {/* Controls Card */}
-                <Card className="mb-8 border-primary/20 shadow-lg">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-primary">
-                            <Search className="h-5 w-5" />
-                            Search Criteria
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
+                    {/* LEFT PANEL: Controls */}
+                    <motion.div
+                        layout
+                        className={cn(
+                            "w-full shrink-0 flex flex-col gap-4 overflow-auto lg:overflow-visible transition-all duration-500",
+                            hasSearched ? "lg:w-[400px] xl:w-[450px] pr-1" : "w-full"
+                        )}
+                    >
 
-                        <Tabs defaultValue="range" className="w-full">
-                            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 h-10 mb-6">
-                                <TabsTrigger value="range" className="gap-2">
-                                    <ArrowRightLeft className="h-4 w-4" />
-                                    AG Range
-                                </TabsTrigger>
-                                <TabsTrigger value="excel" className="gap-2">
-                                    <Download className="h-4 w-4" />
-                                    Excel Upload
-                                </TabsTrigger>
-                            </TabsList>
-
-                            <TabsContent value="range" className="mt-0 space-y-6">
-                                {/* Range Inputs */}
-                                <div className="flex flex-col md:flex-row items-center md:items-end justify-center gap-4">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span className="text-xs font-medium text-muted-foreground">Start AG</span>
-                                        <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleFetch} className="w-full max-w-[290px] md:w-auto" />
+                        {/* Header */}
+                        <div className={cn("text-center", hasSearched ? "lg:text-left" : "mb-8")}>
+                            {!hasSearched && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4"
+                                >
+                                    <Filter className="h-7 w-7" />
+                                </motion.div>
+                            )}
+                            <h1 className={cn("font-bold flex items-center justify-center gap-2", hasSearched ? "text-2xl lg:justify-start" : "text-3xl")}>
+                                {hasSearched && (
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <Filter className="h-6 w-6" />
                                     </div>
-                                    <div className="h-11 flex items-center justify-center hidden md:flex">
-                                        <span className="text-2xl font-bold text-muted-foreground pb-1">→</span>
-                                    </div>
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span className="text-xs font-medium text-muted-foreground">End AG</span>
-                                        <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleFetch} className="w-full max-w-[290px] md:w-auto" />
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-center">
-                                    <Button
-                                        size="lg"
-                                        onClick={handleFetch}
-                                        disabled={!isRangeValid || loading}
-                                        className="w-full max-w-[200px] font-bold shadow-lg shadow-primary/20"
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Scanning...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Search className="h-4 w-4 mr-2" />
-                                                Run Smart Search
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="excel" className="mt-0">
-                                <div className="max-w-md mx-auto flex flex-col gap-4">
-                                    <div className="grid w-full items-center gap-1.5">
-                                        <Label htmlFor="excel-upload" className="sr-only">Upload .xlsx / .csv</Label>
-                                        <div className="flex items-center justify-center w-full">
-                                            <Label
-                                                htmlFor="excel-upload"
-                                                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors border-primary/20"
-                                            >
-                                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                                    <Upload className="w-8 h-8 mb-3 text-muted-foreground" />
-                                                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                                    <p className="text-xs text-muted-foreground">.xlsx or .csv files</p>
-                                                </div>
-                                                <Input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelUpload} disabled={loading} />
-                                            </Label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </TabsContent>
-                        </Tabs>
-
-                        {/* Divider */}
-                        <div className="relative py-2">
-                            <div className="absolute inset-0 flex items-center">
-                                <span className="w-full border-t border-muted" />
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-card px-2 text-muted-foreground">Then Filter Results</span>
-                            </div>
-                        </div>
-
-                        {/* Course Filter */}
-                        <div className="max-w-md mx-auto relative">
-                            <div className="absolute left-3 top-3 text-muted-foreground">
-                                <BookOpen className="h-4 w-4" />
-                            </div>
-                            <Input
-                                placeholder="Filter by Course (e.g., 'CSC-101' or 'Database')"
-                                value={courseFilter}
-                                onChange={(e) => {
-                                    setCourseFilter(e.target.value);
-                                    setGradeFilter(null);
-                                }}
-                                className="pl-9 h-11 border-primary/30 focus-visible:ring-primary w-full"
-                            />
-                            <p className="text-xs text-muted-foreground mt-1.5 text-center">
-                                Leave empty to see all results, or type to filter specific subjects.
+                                )}
+                                Smart Search
+                            </h1>
+                            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                                Analyze specific courses across a batch of students. upload a list or search by range.
                             </p>
                         </div>
 
-                        {/* Progress Bar (Visible for both) */}
+                        {/* Main Controls Card */}
+                        <Card className={cn("border-primary/20 shadow-md transition-all", hasSearched ? "" : "shadow-xl border-primary/30")}>
+                            {!hasSearched && (
+                                <CardHeader className="text-center pb-2">
+                                    <CardTitle className="font-semibold tracking-tight text-2xl">
+                                        Search Parameters
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Enter AG range or upload Excel to start.
+                                    </CardDescription>
+                                </CardHeader>
+                            )}
+                            {hasSearched && (
+                                <CardHeader className="pb-3 pt-4">
+                                    <CardTitle className="text-lg flex items-center gap-2 text-primary">
+                                        <Search className="h-4 w-4" />
+                                        Parameters
+                                    </CardTitle>
+                                </CardHeader>
+                            )}
+
+                            <CardContent className="space-y-4 pb-4 pt-4">
+                                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                                    <TabsList className={cn("grid w-full mb-4", hasSearched ? "h-9 grid-cols-2" : "h-10 max-w-md mx-auto grid-cols-2 mb-6")}>
+                                        <TabsTrigger value="range" className={cn("gap-2", hasSearched ? "text-xs" : "text-sm")}>
+                                            <ArrowRightLeft className="h-4 w-4" />
+                                            AG Range
+                                        </TabsTrigger>
+                                        <TabsTrigger value="excel" className={cn("gap-2", hasSearched ? "text-xs" : "text-sm")}>
+                                            <Download className="h-4 w-4" />
+                                            Excel Upload
+                                        </TabsTrigger>
+                                    </TabsList>
+
+                                    <TabsContent value="range" className="mt-0 space-y-4">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Start AG</Label>
+                                                <AGNumberInput value={startAG} onChange={setStartAG} onEnter={handleFetch} className={cn("h-9", !hasSearched && "h-11 text-lg w-full max-w-[290px] md:w-auto")} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">End AG</Label>
+                                                <AGNumberInput value={endAG} onChange={setEndAG} onEnter={handleFetch} className={cn("h-9", !hasSearched && "h-11 text-lg w-full max-w-[290px] md:w-auto")} />
+                                            </div>
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="excel" className="mt-0">
+                                        <Label
+                                            htmlFor="excel-upload"
+                                            className={cn(
+                                                "flex flex-col items-center justify-center w-full border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors border-primary/20",
+                                                hasSearched ? "h-24" : "h-32"
+                                            )}
+                                        >
+                                            <Upload className={cn("text-muted-foreground", hasSearched ? "w-6 h-6 mb-2" : "w-8 h-8 mb-3")} />
+                                            <span className="text-xs text-muted-foreground font-semibold">Click to upload .xlsx/.csv</span>
+                                            <Input id="excel-upload" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelUpload} disabled={loading} />
+                                        </Label>
+                                    </TabsContent>
+                                </Tabs>
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <BookOpen className="h-4 w-4 text-muted-foreground" />
+                                        <Label className="text-xs font-semibold">Filter Subject</Label>
+                                    </div>
+                                    <Input
+                                        placeholder="e.g. 'Database'"
+                                        value={courseFilter}
+                                        onChange={(e) => {
+                                            setCourseFilter(e.target.value);
+                                            setGradeFilter(null);
+                                        }}
+                                        onKeyDown={(e) => e.key === 'Enter' && activeTab === 'range' && handleFetch()}
+                                        className={cn("text-sm", hasSearched ? "h-9" : "h-11")}
+                                    />
+                                    <p className="text-[10px] text-muted-foreground">Type subject name to analyze grades.</p>
+                                </div>
+
+                                {activeTab === 'range' && (
+                                    <Button
+                                        size={hasSearched ? "sm" : "lg"}
+                                        onClick={handleFetch}
+                                        disabled={!isRangeValid || loading || !courseFilter}
+                                        className={cn("w-full font-bold", !hasSearched && "mt-2")}
+                                    >
+                                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
+                                        {loading ? "Scanning..." : "Fetch Results"}
+                                    </Button>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Progress Panel (Compact) */}
                         <AnimatePresence>
                             {loading && (
-                                <div className="flex justify-center pt-4">
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: "auto" }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="w-full max-w-md px-4"
-                                    >
-                                        <div className="bg-muted rounded-full h-2 overflow-hidden">
-                                            <motion.div
-                                                className="bg-primary h-full"
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${progress}%` }}
-                                                transition={{ duration: 0.3 }}
-                                            />
-                                        </div>
-                                        <p className="text-sm text-muted-foreground text-center mt-2">
-                                            Processing... {Math.round(progress)}%
-                                        </p>
-                                    </motion.div>
-                                </div>
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="bg-card border rounded-md p-3 shadow-sm"
+                                >
+                                    <div className="flex justify-between text-xs mb-1">
+                                        <span>Processing...</span>
+                                        <span className="font-mono">{Math.round(progress)}%</span>
+                                    </div>
+                                    <div className="bg-muted rounded-full h-1.5 overflow-hidden">
+                                        <motion.div
+                                            className="bg-primary h-full"
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${progress}%` }}
+                                            transition={{ duration: 0.3 }}
+                                        />
+                                    </div>
+                                </motion.div>
                             )}
                         </AnimatePresence>
-                    </CardContent>
-                </Card>
+                    </motion.div>
 
-                {/* Stats Bar (Only if Course Filter is active and we have results) */}
-                <AnimatePresence>
-                    {courseFilter && !loading && courseFilteredResults.length > 0 && stats && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8"
-                        >
-                            {Object.entries(stats).map(([grade, count]) => (
-                                <div
-                                    key={grade}
-                                    onClick={() => setGradeFilter(gradeFilter === grade ? null : grade)}
-                                    className={cn(
-                                        "bg-card border-l-4 rounded-r-md p-3 shadow-sm cursor-pointer transition-all hover:translate-y-[-2px]",
-                                        grade === 'A' ? "border-l-emerald-500" :
-                                            grade === 'B' ? "border-l-blue-500" :
-                                                grade === 'C' ? "border-l-yellow-500" :
-                                                    grade === 'D' ? "border-l-orange-500" :
-                                                        "border-l-red-500",
-                                        gradeFilter === grade ? "ring-2 ring-primary ring-offset-2" : "hover:bg-muted/50"
-                                    )}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-bold text-lg">{grade}</span>
-                                        <Badge variant="outline" className="font-mono">{count}</Badge>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1">Students</p>
-                                </div>
-                            ))}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                    {/* RIGHT PANEL: Results (Flex-1) */}
+                    <AnimatePresence>
+                        {hasSearched && (
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                className="flex-1 flex flex-col h-full overflow-hidden bg-muted/5 rounded-xl border"
+                            >
 
-                {/* Results */}
-                <AnimatePresence>
-                    {(!loading && results.length > 0) && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                        >
-                            <Card>
-                                <CardHeader>
-                                    <div className="flex items-center justify-between flex-wrap gap-4">
-                                        <div>
-                                            <CardTitle className="flex items-center gap-2">
-                                                Analysis Results
-                                                {gradeFilter && (
-                                                    <Badge className="bg-primary text-primary-foreground">
-                                                        Filter: {gradeFilter}
-                                                        <XCircle
-                                                            className="ml-1 h-3 w-3 cursor-pointer"
-                                                            onClick={(e) => { e.stopPropagation(); setGradeFilter(null); }}
-                                                        />
-                                                    </Badge>
-                                                )}
-                                            </CardTitle>
-                                            <CardDescription>
-                                                Found {courseFilteredResults.length} matches
-                                                {gradeFilter && ` (${displayData.length} shown)`}
-                                            </CardDescription>
-                                        </div>
-                                        <Button variant="outline" size="sm" onClick={exportCSV}>
-                                            <Download className="h-4 w-4 mr-2" />
-                                            Export CSV
-                                        </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>#</TableHead>
-                                                    <TableHead>Registration</TableHead>
-                                                    <TableHead className="min-w-[140px]">Name</TableHead>
-                                                    {courseFilter ? (
-                                                        <>
-                                                            <TableHead className="text-center">Marks</TableHead>
-                                                            <TableHead className="text-center">Grade</TableHead>
-                                                        </>
-                                                    ) : (
-                                                        <TableHead className="text-center">CGPA</TableHead>
+                                {/* Stats Header (Fixed Top of Right Panel) */}
+                                {courseFilter && !loading && courseFilteredResults.length > 0 && stats && (
+                                    <div className="p-3 border-b bg-card/50 backdrop-blur-sm z-10">
+                                        <div className="grid grid-cols-5 gap-2">
+                                            {Object.entries(stats).map(([grade, count]) => (
+                                                <div
+                                                    key={grade}
+                                                    onClick={() => setGradeFilter(gradeFilter === grade ? null : grade)}
+                                                    className={cn(
+                                                        "rounded-md p-2 cursor-pointer transition-all border text-center",
+                                                        grade === 'A' ? "bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20" :
+                                                            grade === 'B' ? "bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20" :
+                                                                grade === 'C' ? "bg-yellow-500/10 border-yellow-500/20 hover:bg-yellow-500/20" :
+                                                                    grade === 'D' ? "bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20" :
+                                                                        "bg-red-500/10 border-red-500/20 hover:bg-red-500/20",
+                                                        gradeFilter === grade ? "ring-2 ring-primary inset-0" : ""
                                                     )}
-                                                    <TableHead className="w-10"></TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {displayData.length === 0 ? (
-                                                    <TableRow>
-                                                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                                            No matches found for this filter.
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ) : (displayData.map(({ student, match }, index) => (
-                                                    <TableRow key={student.registrationNo} className="hover:bg-muted/50">
-                                                        <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
-                                                        <TableCell className="font-mono whitespace-nowrap">{student.registrationNo}</TableCell>
-                                                        <TableCell className="min-w-[140px]">{student.name}</TableCell>
-
-                                                        {courseFilter && match ? (
-                                                            <>
-                                                                <TableCell className="text-center font-mono">{match.marks}</TableCell>
-                                                                <TableCell className="text-center">
-                                                                    <Badge variant="secondary" className="font-bold">
-                                                                        {match.grade}
-                                                                    </Badge>
-                                                                </TableCell>
-                                                            </>
-                                                        ) : (
-                                                            <TableCell className="text-center font-bold text-primary">
-                                                                {student.cgpa.toFixed(2)}
-                                                            </TableCell>
-                                                        )}
-
-                                                        <TableCell>
-                                                            {match && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => setSelectedSubject(match)}
-                                                                    title="View Subject Details"
-                                                                >
-                                                                    <Info className="h-4 w-4 text-primary" />
-                                                                </Button>
-                                                            )}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )))}
-                                            </TableBody>
-                                        </Table>
+                                                >
+                                                    <div className="text-lg font-bold leading-none">{grade}</div>
+                                                    <div className="text-[10px] text-muted-foreground">{count}</div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                )}
 
+                                {/* Scrollable Table Area */}
+                                <div className="flex-1 min-h-0 relative">
+                                    <ScrollArea className="h-full w-full p-2">
+                                        <div className="pb-2">
+                                            {/* Action Bar */}
+                                            <div className="flex items-center justify-between mb-2 px-2">
+                                                <div className="text-sm font-medium text-muted-foreground">
+                                                    Results: {displayData.length}
+                                                </div>
+                                                {displayData.length > 0 && (
+                                                    <Button variant="outline" size="sm" onClick={exportCSV} className="h-8 text-xs">
+                                                        <Download className="h-3 w-3 mr-2" />
+                                                        CSV
+                                                    </Button>
+                                                )}
+                                            </div>
+
+                                            <Card className="border-0 shadow-none bg-transparent">
+                                                <CardContent className="p-0">
+                                                    <Table>
+                                                        <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+                                                            <TableRow>
+                                                                <TableHead className="h-9 w-8 px-1 text-center text-[10px] md:text-xs text-muted-foreground">#</TableHead>
+                                                                <TableHead className="h-9 w-24 px-1 text-[10px] md:text-xs">Reg No</TableHead>
+                                                                <TableHead className="h-9 px-2 text-[10px] md:text-sm">Name</TableHead>
+                                                                {courseFilter ? (
+                                                                    <>
+                                                                        <TableHead className="h-9 w-12 px-1 text-center text-[10px] md:text-xs">Marks</TableHead>
+                                                                        <TableHead className="h-9 w-12 px-1 text-center text-[10px] md:text-xs">Grd</TableHead>
+                                                                    </>
+                                                                ) : (
+                                                                    <TableHead className="h-9 w-16 px-1 text-center text-[10px] md:text-xs">CGPA</TableHead>
+                                                                )}
+                                                                <TableHead className="h-9 w-10 px-1"></TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {loading ? (
+                                                                <TableRow>
+                                                                    <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">
+                                                                        Waiting for data...
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ) : displayData.length === 0 ? (
+                                                                <TableRow>
+                                                                    <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">
+                                                                        {results.length === 0 ? "Start a search to view results." : "No matches found."}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ) : (
+                                                                displayData.map(({ student, match }, index) => (
+                                                                    <TableRow key={`row-${student.registrationNo}`} className="hover:bg-muted/50 h-10">
+                                                                        <TableCell className="py-2 px-1 text-center text-[10px] md:text-sm text-muted-foreground">{index + 1}</TableCell>
+                                                                        <TableCell className="py-2 px-1 font-mono text-[10px] md:text-xs whitespace-nowrap">{student.registrationNo}</TableCell>
+                                                                        <TableCell className="py-2 px-2 text-[11px] md:text-sm font-medium max-w-[80px] md:max-w-[200px] overflow-x-auto whitespace-nowrap scrollbar-hide">
+                                                                            {student.name}
+                                                                        </TableCell>
+                                                                        {courseFilter && match ? (
+                                                                            <>
+                                                                                <TableCell className="py-2 px-1 text-center font-mono text-[11px] md:text-sm">{match.marks}</TableCell>
+                                                                                <TableCell className="py-2 px-1 text-center">
+                                                                                    <Badge variant={match.grade === 'F' ? 'destructive' : 'secondary'} className="font-bold h-5 px-1.5 text-[10px]">
+                                                                                        {match.grade}
+                                                                                    </Badge>
+                                                                                </TableCell>
+                                                                            </>
+                                                                        ) : (
+                                                                            <TableCell className="text-center font-bold text-primary py-2 px-1 text-xs md:text-sm">
+                                                                                {student.cgpa.toFixed(2)}
+                                                                            </TableCell>
+                                                                        )}
+                                                                        <TableCell className="py-2 px-1 text-right">
+                                                                            {match && (
+                                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setSelectedSubject(match)}>
+                                                                                    <Info className="h-4 w-4" />
+                                                                                </Button>
+                                                                            )}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))
+                                                            )}
+                                                        </TableBody>
+                                                    </Table>
+                                                </CardContent>
+                                            </Card>
+                                        </div>
+                                    </ScrollArea>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                </motion.div>
+
+                {/* Modals */}
                 <CourseDetailModal
                     isOpen={!!selectedSubject}
                     onClose={() => setSelectedSubject(null)}
