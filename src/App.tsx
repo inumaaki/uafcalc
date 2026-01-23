@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import { ThemeProvider } from "@/components/theme-provider";
 
 import ScrollToTop from "@/components/ScrollToTop";
+import { SystemStatusNotice } from "@/components/SystemStatusNotice";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <SystemStatusNotice />
           <ScrollToTop />
           <Routes>
             <Route path="/" element={<Dashboard />} />

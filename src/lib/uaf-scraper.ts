@@ -407,6 +407,26 @@ export class UAFScraper {
 
         return results;
     }
+
+    public async checkAttendanceHealth(): Promise<boolean> {
+        try {
+            // Check specifically with the provided test ID
+            const response = await axios.get(`${CONFIG.PROXY_URL}?action=fetch_legacy&regNumber=2022-ag-7745`, {
+                timeout: 15000, // 15s timeout for health check
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+
+            // If we get valid HTML back, the system is up
+            if (response.status === 200 && response.data && typeof response.data === 'string' && response.data.length > 100) {
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.warn("Attendance system health check failed:", error);
+            return false;
+        }
+    }
 }
+
 
 export const uafScraper = new UAFScraper();
