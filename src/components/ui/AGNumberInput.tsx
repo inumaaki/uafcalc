@@ -53,7 +53,7 @@ export function AGNumberInput({ value, onChange, onEnter, className }: AGNumberI
   return (
     <motion.div
       className={cn(
-        "flex items-center justify-center h-9 rounded-md border-2 transition-all duration-200 bg-card overflow-hidden w-full",
+        "flex items-center justify-center h-11 rounded-lg border-2 transition-all duration-200 bg-card overflow-hidden w-full",
         focused ? "border-primary shadow-lg" : "border-border",
         className
       )}
@@ -70,16 +70,16 @@ export function AGNumberInput({ value, onChange, onEnter, className }: AGNumberI
         onKeyDown={handleYearKeyDown}
         onFocus={() => setFocused("year")}
         onBlur={() => setFocused(null)}
-        className="flex-1 w-0 min-w-[2.5rem] text-center font-bold text-sm border-none shadow-none outline-none ring-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 h-full"
+        className="flex-1 w-0 min-w-[3rem] text-center font-bold text-lg border-none shadow-none outline-none ring-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 h-full"
         maxLength={4}
       />
 
       {/* Separator */}
-      <span className="text-sm font-bold text-primary shrink-0 px-0.5">-</span>
-      <span className="px-1.5 py-0 rounded-[4px] bg-primary text-primary-foreground font-bold text-[10px] shrink-0 mx-0.5 flex items-center h-5">
+      <span className="text-lg font-bold text-primary shrink-0 px-1">-</span>
+      <span className="px-2 py-0.5 rounded-[4px] bg-primary text-primary-foreground font-bold text-xs shrink-0 mx-0.5 flex items-center h-6">
         AG
       </span>
-      <span className="text-sm font-bold text-primary shrink-0 px-0.5">-</span>
+      <span className="text-lg font-bold text-primary shrink-0 px-1">-</span>
 
       {/* Number Input */}
       <Input
@@ -92,7 +92,7 @@ export function AGNumberInput({ value, onChange, onEnter, className }: AGNumberI
         onKeyDown={handleNumberKeyDown}
         onFocus={() => setFocused("number")}
         onBlur={() => setFocused(null)}
-        className="flex-1 w-0 min-w-[2.5rem] text-center font-bold text-sm border-none shadow-none outline-none ring-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full"
+        className="flex-1 w-0 min-w-[3rem] text-center font-bold text-lg border-none shadow-none outline-none ring-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full"
         maxLength={6}
       />
     </motion.div>

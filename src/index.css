@@ -150,4 +150,24 @@
   .glow {
     box-shadow: var(--shadow-glow);
   }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
+
+/* Hide scrollbar for everybody always */
+::-webkit-scrollbar {
+    display: none;
+}
+
+html, body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

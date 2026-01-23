@@ -191,7 +191,7 @@ export default function IndividualResult() {
                       size="default"
                       onClick={handleFetch}
                       disabled={!isValid || loading}
-                      className="w-full h-9 font-bold"
+                      className="w-full h-11 font-bold rounded-lg shadow-md hover:translate-y-[-1px] transition-all"
                     >
                       {loading ? (
                         <>
