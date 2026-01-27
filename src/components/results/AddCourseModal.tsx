@@ -38,7 +38,7 @@ export function AddCourseModal({ isOpen, onClose, semesterName, onAddCourse }: A
             name: courseTitle || courseCode,
             creditHours: credits,
             fullCreditHours: `${credits}(${credits}-0)`, // Defaulting split
-            marks: totalMarks,
+            marks: marks,
             mid: 0,
             assignment: 0,
             final: marks, // Assigning all obtained to final for simplicity in this manual mode

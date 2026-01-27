@@ -27,13 +27,13 @@ export const SystemStatusNotice = () => {
     if (!isVisible) return null;
 
     return (
-        <div className="fixed top-20 right-4 z-[100] animate-in fade-in slide-in-from-top-2">
-            <div className="bg-destructive text-destructive-foreground px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 max-w-sm border border-destructive/20">
+        <div className="fixed top-20 left-4 right-4 md:left-auto md:right-4 md:w-auto md:max-w-sm z-[100] animate-in fade-in slide-in-from-top-2">
+            <div className="bg-destructive text-destructive-foreground px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 w-full border border-destructive/20">
                 <AlertCircle className="h-5 w-5 shrink-0" />
                 <div className="flex-1">
                     <p className="font-bold text-sm">System Alert</p>
                     <p className="text-xs opacity-90">
-                        ATTENDANCE SYSTEM IS DOWN. DATA CANNOT BE RETRIEVED
+                        ATTENDANCE SYSTEM IS DOWN. DATA CANNOT BE RETRIEVED.
                     </p>
                 </div>
                 <button
