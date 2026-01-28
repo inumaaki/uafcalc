@@ -70,7 +70,8 @@ export function filterBestAttempts(subjects: Subject[]): Subject[] {
 
   subjects.forEach(subject => {
     // Normalize code to uppercase/trimmed
-    const code = subject.code?.trim().toUpperCase();
+    // Normalize code: remove non-alphanumeric, uppercase
+    const code = subject.code?.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
     if (!code) return; // Skip if no code
 
     const existing = courseMap.get(code);

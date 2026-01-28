@@ -55,81 +55,99 @@ export default function IndividualResult() {
   const handleAddCourse = (semesterName: string, newSubject: Subject) => {
     if (!result) return;
 
-    // Create a new copy of result to modify
-    const updatedResult = { ...result };
-    const semesterIndex = updatedResult.semesters.findIndex(s => s.semester === semesterName);
+    // Create a deep copy of the semester to modify
+    const updatedSemesters = [...result.semesters];
+    const semesterIndex = updatedSemesters.findIndex((s) => s.semester === semesterName);
 
     if (semesterIndex === -1) return;
 
-    // Add the new course
-    updatedResult.semesters[semesterIndex].subjects.push(newSubject);
+    // Clone the specific semester and its subjects
+    const updatedSemester = {
+      ...updatedSemesters[semesterIndex],
+      subjects: [...updatedSemesters[semesterIndex].subjects, newSubject],
+    };
+    updatedSemesters[semesterIndex] = updatedSemester;
 
     // Recalculate Semester GPA & Totals
-    const semester = updatedResult.semesters[semesterIndex];
-    semester.gpa = calculateGPA(semester.subjects);
+    updatedSemester.gpa = calculateGPA(updatedSemester.subjects);
 
     // Update semester totals for display
     let totalPoints = 0;
     let totalCredits = 0;
-    semester.subjects.forEach(sub => {
+    updatedSemester.subjects.forEach((sub) => {
       totalPoints += sub.gradePoints;
       totalCredits += sub.creditHours;
     });
-    semester.totalCreditHours = totalCredits;
-    semester.totalGradePoints = totalPoints;
+    updatedSemester.totalCreditHours = totalCredits;
+    updatedSemester.totalGradePoints = totalPoints;
 
     // Recalculate Overall CGPA
-    updatedResult.cgpa = calculateCGPA(updatedResult.semesters);
+    const newCGPA = calculateCGPA(updatedSemesters);
 
-    // Update overall totals (Simple sum for display, though CGPA uses best attempts)
+    // Update overall totals
     let grandTotalPoints = 0;
     let grandTotalCredits = 0;
-    updatedResult.semesters.forEach(sem => {
+    updatedSemesters.forEach((sem) => {
       grandTotalPoints += sem.totalGradePoints;
       grandTotalCredits += sem.totalCreditHours;
     });
-    updatedResult.totalCreditHours = grandTotalCredits;
 
-    setResult(updatedResult);
+    const finalResult = {
+      ...result,
+      semesters: updatedSemesters,
+      cgpa: newCGPA,
+      totalCreditHours: grandTotalCredits,
+    };
+
+    setResult(finalResult);
   };
 
   const handleDeleteCourse = (semesterName: string, courseCode: string) => {
     if (!result) return;
 
-    const updatedResult = { ...result };
-    const semesterIndex = updatedResult.semesters.findIndex(s => s.semester === semesterName);
+    const updatedSemesters = [...result.semesters];
+    const semesterIndex = updatedSemesters.findIndex((s) => s.semester === semesterName);
 
     if (semesterIndex === -1) return;
 
-    const semester = updatedResult.semesters[semesterIndex];
-    // Filter out the course
-    semester.subjects = semester.subjects.filter(s => s.code !== courseCode);
+    // Clone the semester and filter subjects
+    const updatedSemester = {
+      ...updatedSemesters[semesterIndex],
+      subjects: updatedSemesters[semesterIndex].subjects.filter((s) => s.code !== courseCode),
+    };
+    updatedSemesters[semesterIndex] = updatedSemester;
 
     // Recalculate Semester GPA & Totals
-    semester.gpa = calculateGPA(semester.subjects);
+    updatedSemester.gpa = calculateGPA(updatedSemester.subjects);
 
     let totalPoints = 0;
     let totalCredits = 0;
-    semester.subjects.forEach(sub => {
+    updatedSemester.subjects.forEach((sub) => {
       totalPoints += sub.gradePoints;
       totalCredits += sub.creditHours;
     });
-    semester.totalCreditHours = totalCredits;
-    semester.totalGradePoints = totalPoints;
+    updatedSemester.totalCreditHours = totalCredits;
+    updatedSemester.totalGradePoints = totalPoints;
 
     // Recalculate Overall CGPA
-    updatedResult.cgpa = calculateCGPA(updatedResult.semesters);
+    const newCGPA = calculateCGPA(updatedSemesters);
 
     // Update overall totals
     let grandTotalPoints = 0;
     let grandTotalCredits = 0;
-    updatedResult.semesters.forEach(sem => {
+    updatedSemesters.forEach((sem) => {
       grandTotalPoints += sem.totalGradePoints;
       grandTotalCredits += sem.totalCreditHours;
     });
-    updatedResult.totalCreditHours = grandTotalCredits;
 
-    setResult(updatedResult);
+    const finalResult = {
+      ...result,
+      semesters: updatedSemesters,
+      cgpa: newCGPA,
+      totalCreditHours: grandTotalCredits,
+    };
+
+    setResult(finalResult);
   };
 
   return (
