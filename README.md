@@ -1,73 +1,82 @@
-# Welcome to your Lovable project
+# UAF Calc - GPA & CGPA Manager for UAF Students 🎓
 
-## Project info
+An advanced, unofficial Result Management System for the University of Agriculture Faisalabad (UAF). Built to provide a modern, fast, and responsive interface for students to check their results and calculate their GPA/CGPA with precision.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+![Project Status](https://img.shields.io/badge/Status-Active-success)
+[![Live Demo](https://img.shields.io/badge/Live-uafcalc.online-3b82f6)](https://uafcalc.online)
+![Vercel Deployment](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
-## How can I edit this code?
+## ✨ Features
 
-There are several ways of editing your application.
+*   **Instant Result Fetching:** Retrieve complete academic history using just your AG Number (e.g., `2022-ag-1234`).
+*   **Accurate GPA/CGPA Calculator:** Automatically implements official UAF grading formulas (including repeat/improvement logic).
+*   **Manual Simulator:** Add hypothetical courses or edit marks to simulate "What-If" scenarios for future semesters.
+*   **Modern UI/UX:** Built with a beautiful, dark-mode-first design using Tailwind CSS and Shadcn UI.
+*   **Mobile Responsive:** Fully optimized for seamless use on smartphones and desktop devices.
+*   **Analytics Integration:** Updates with Vercel Analytics for tracking visitor trends.
 
-**Use Lovable**
+## 🛠️ Technology Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+This project uses a cutting-edge web development stack for maximum performance and developer experience:
 
-Changes made via Lovable will be committed automatically to this repo.
+*   **Frontend Framework:** [React 18](https://react.dev/)
+*   **Build Tool:** [Vite](https://vitejs.dev/) (Flash fast HMR and optimized builds)
+*   **Language:** [TypeScript](https://www.typescriptlang.org/) (Strict type safety)
+*   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+*   **UI Components:** [Shadcn UI](https://ui.shadcn.com/) (based on Radix Primitives)
+*   **State Management:** [TanStack Query](https://tanstack.com/query/latest) (React Query)
+*   **Routing:** React Router DOM v6
+*   **Data Scraping:** Custom Node.js Scraper with [Cheerio](https://cheerio.js.org/)
 
-**Use your preferred IDE**
+## 🏗️ Architecture & How it Works
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Since UAF does not provide a public API, extracting data requires a specialized approach:
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1.  **Proxy Server:** A secure Vercel Serverless Function (`/api/proxy`) acts as an intermediary.
+2.  **Session Handling:** The proxy automates the login handshake with the LMS to retrieve secure tokens (CSRF) and session cookies.
+3.  **HTML Parsing:** It fetches the raw HTML result pages from the university server and uses **Cheerio** to parse the DOM, extracting marks and course details into clean JSON.
+4.  **Client-Side Logic:** The React frontend receives this JSON and runs GPA calculation algorithms locally to ensure instant feedback without re-fetching.
 
-Follow these steps:
+## 🚀 Getting Started
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Follow these steps to run the project locally on your machine.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Prerequisites
+*   Node.js (v18 or higher)
+*   npm or bun
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Installation
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+# 1. Clone the repository
+git clone https://github.com/inumaaki/uafcalc.git
+
+# 2. Navigate to directory
+cd uafcalc
+
+# 3. Install dependencies
+npm install
+
+# 4. Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app should now be running at `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🤝 Contributing
 
-**Use GitHub Codespaces**
+Contributions are welcome! If you'd like to improve the GPA formulation or add new features:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4.  Push to the branch (`git push origin feature/AmazingFeature`).
+5.  Open a Pull Request.
 
-## What technologies are used for this project?
+## 📝 License
 
-This project is built with:
+This project is open-source and available under the **MIT License**.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+*Note: This is an unofficial tool and is not affiliated with the University of Agriculture Faisalabad.*
