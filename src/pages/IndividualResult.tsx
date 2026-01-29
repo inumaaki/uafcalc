@@ -163,19 +163,38 @@ export default function IndividualResult() {
         )}>
           {/* Top Actions Bar - Visible only when result is present */}
           {result && !loading && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex justify-start mb-4"
-            >
-              <Button
-                onClick={() => generatePDFReport(result)}
-                className="gap-2 shadow-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
+            <>
+              {/* Desktop Button - Hidden on mobile */}
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="hidden md:flex justify-start mb-4"
               >
-                <Download className="h-4 w-4" />
-                Download Report
-              </Button>
-            </motion.div>
+                <Button
+                  onClick={() => generatePDFReport(result)}
+                  className="gap-2 shadow-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Report
+                </Button>
+              </motion.div>
+
+              {/* Mobile FAB - Fixed at bottom left */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="fixed bottom-6 left-6 z-50 md:hidden"
+              >
+                <Button
+                  onClick={() => generatePDFReport(result)}
+                  size="lg"
+                  className="h-14 w-14 rounded-full shadow-2xl bg-primary/40 backdrop-blur-md border border-white/20 hover:bg-primary/60 transition-all duration-300 p-0 flex items-center justify-center text-primary-foreground"
+                >
+                  <Download className="h-6 w-6" />
+                  <span className="sr-only">Download Report</span>
+                </Button>
+              </motion.div>
+            </>
           )}
 
           {/* Header & Search - Always Compact */}

@@ -2,6 +2,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { StudentResult } from '@/types/result';
 
+import { compareSemesters } from './course-utils';
+
 export const generatePDFReport = (student: StudentResult) => {
     const doc = new jsPDF();
 
@@ -62,8 +64,8 @@ export const generatePDFReport = (student: StudentResult) => {
     // reverse() usually sorts latest first in UI, but for transcript we often want specific order.
     // We'll trust the current order in the object matches user preference or reverse if needed.
     // Usually transcripts are Semester 1 -> N. The object might be N -> 1.
-    // Let's create a copy and sort by semester number for the report.
-    const semestersForReport = [...student.semesters].sort((a, b) => a.semesterNumber - b.semesterNumber);
+    // Use proper chronological sort to handle Summer semesters correctly (which have semesterNumber 0)
+    const semestersForReport = [...student.semesters].sort((a, b) => compareSemesters(a.semester, b.semester));
 
     semestersForReport.forEach((sem) => {
         // Check for page break
@@ -72,13 +74,26 @@ export const generatePDFReport = (student: StudentResult) => {
             yPos = 20;
         }
 
+        // Check if we should add semester number (Skip Summer)
+        const isSummer = sem.semester.toLowerCase().includes('summer');
+        let semesterSuffix = "";
+
+        if (!isSummer && sem.semesterNumber > 0) {
+            const getOrdinal = (n: number) => {
+                const s = ["th", "st", "nd", "rd"];
+                const v = n % 100;
+                return n + (s[(v - 20) % 10] || s[v] || s[0]);
+            };
+            semesterSuffix = ` (${getOrdinal(sem.semesterNumber)} Semester)`;
+        }
+
         // Semester Header
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.setFillColor(230, 230, 230);
         // Draw a small bar
         doc.rect(14, yPos - 5, 182, 7, 'F');
-        doc.text(`${sem.semester} (GPA: ${sem.gpa.toFixed(2)})`, 16, yPos);
+        doc.text(`${sem.semester}${semesterSuffix} (GPA: ${sem.gpa.toFixed(2)})`, 16, yPos);
 
         // Table Body
         const tableBody = sem.subjects.map(sub => [
