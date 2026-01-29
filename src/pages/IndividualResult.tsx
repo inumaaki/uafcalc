@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, AlertCircle, UserCheck } from "lucide-react";
+import { Search, Loader2, AlertCircle, UserCheck, Download } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { AGNumberInput } from "@/components/ui/AGNumberInput";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { formatAGNumber, calculateGPA, calculateCGPA } from "@/lib/gpaCalculator
 import { gradingScale } from "@/config/semesterMap";
 import type { StudentResult, SemesterResult, Subject } from "@/types/result";
 import { cn } from "@/lib/utils";
+import { generatePDFReport } from "@/lib/pdfGenerator";
 
 
 
@@ -153,13 +154,30 @@ export default function IndividualResult() {
   return (
     <Layout>
       <div className={cn(
-        "flex flex-col items-center justify-center p-2 md:p-8 transition-all duration-500",
-        result ? "min-h-0 py-8" : "min-h-[85vh]"
+        "flex flex-col items-center justify-center transition-all duration-500",
+        result ? "min-h-0 px-2 md:px-8 pb-8 pt-0" : "min-h-[85vh] p-2 md:p-8"
       )}>
         <div className={cn(
           "w-full mx-auto transition-all duration-500",
           result ? "max-w-7xl" : "max-w-lg"
         )}>
+          {/* Top Actions Bar - Visible only when result is present */}
+          {result && !loading && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex justify-start mb-4"
+            >
+              <Button
+                onClick={() => generatePDFReport(result)}
+                className="gap-2 shadow-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                <Download className="h-4 w-4" />
+                Download Report
+              </Button>
+            </motion.div>
+          )}
+
           {/* Header & Search - Always Compact */}
           <div className="max-w-lg mx-auto w-full">
             <motion.div
