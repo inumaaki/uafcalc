@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, Download, Upload, Users, XCircle, ArrowRightLeft } from "lucide-react";
+import { Search, Loader2, Download, Upload, Users, XCircle, ArrowRightLeft, ArrowUpDown } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { AGNumberInput } from "@/components/ui/AGNumberInput";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { generateAGRange, parseAGNumber } from "@/lib/gpaCalculator";
 import { uafScraper } from "@/lib/uaf-scraper";
 import type { StudentResult } from "@/types/result";
@@ -150,10 +157,39 @@ export default function ClassResult() {
     return counts;
   }, [results]);
 
+  const [sortBy, setSortBy] = useState<string>("default");
+
   const displayData = useMemo(() => {
-    if (!gradeFilter) return results;
-    return results.filter(r => getCGPAPgrade(r.cgpa) === gradeFilter);
-  }, [results, gradeFilter]);
+    let data = [...results];
+
+    // 1. Filter
+    if (gradeFilter) {
+      data = data.filter(r => getCGPAPgrade(r.cgpa) === gradeFilter);
+    }
+
+    // 2. Sort
+    data.sort((a, b) => {
+      switch (sortBy) {
+        case "gpa-asc":
+          return (a.semesters[0]?.gpa || 0) - (b.semesters[0]?.gpa || 0);
+        case "gpa-desc":
+          return (b.semesters[0]?.gpa || 0) - (a.semesters[0]?.gpa || 0);
+        case "cgpa-asc":
+          return a.cgpa - b.cgpa;
+        case "cgpa-desc":
+          return b.cgpa - a.cgpa;
+        case "default":
+        default:
+          const agA = parseAGNumber(a.registrationNo);
+          const agB = parseAGNumber(b.registrationNo);
+          if (!agA || !agB) return 0;
+          if (agA.year !== agB.year) return parseInt(agA.year) - parseInt(agB.year);
+          return parseInt(agA.number) - parseInt(agB.number);
+      }
+    });
+
+    return data;
+  }, [results, gradeFilter, sortBy]);
 
   const exportCSV = () => {
     if (displayData.length === 0) return;
@@ -338,10 +374,13 @@ export default function ClassResult() {
                         Found {results.length} students {gradeFilter && `(${displayData.length} shown)`}
                       </CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={exportCSV}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export List
-                    </Button>
+                    {/* Select Removed - Sorting moved to headers */}
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={exportCSV}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Export List
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -354,8 +393,37 @@ export default function ClassResult() {
                           <TableHead className="h-9 w-24 md:w-[13%] pl-1 md:pl-2 pr-0 text-[10px] md:text-xs">Registration</TableHead>
                           {/* GAP REDUCTION: Removed left padding (pl-0) from Name */}
                           <TableHead className="h-9 pl-0 pr-2 md:pr-2 text-[10px] md:text-sm">Name</TableHead>
-                          <TableHead className="h-9 w-12 md:w-20 px-1 md:px-4 text-center text-[10px] md:text-xs">GPA</TableHead>
-                          <TableHead className="h-9 w-12 md:w-20 px-1 md:px-4 text-center text-[10px] md:text-xs">CGPA</TableHead>
+
+                          {/* GPA Sortable Header */}
+                          <TableHead
+                            className="h-9 w-12 md:w-20 px-1 md:px-4 text-center text-[10px] md:text-xs cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => {
+                              if (sortBy === 'gpa-desc') setSortBy('gpa-asc');
+                              else if (sortBy === 'gpa-asc') setSortBy('default');
+                              else setSortBy('gpa-desc');
+                            }}
+                          >
+                            <div className="flex items-center justify-center gap-1">
+                              GPA
+                              <ArrowUpDown className={cn("h-3 w-3", sortBy.includes('gpa') ? "text-primary opacity-100" : "opacity-30")} />
+                            </div>
+                          </TableHead>
+
+                          {/* CGPA Sortable Header */}
+                          <TableHead
+                            className="h-9 w-12 md:w-20 px-1 md:px-4 text-center text-[10px] md:text-xs cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => {
+                              if (sortBy === 'cgpa-desc') setSortBy('cgpa-asc');
+                              else if (sortBy === 'cgpa-asc') setSortBy('default');
+                              else setSortBy('cgpa-desc');
+                            }}
+                          >
+                            <div className="flex items-center justify-center gap-1">
+                              CGPA
+                              <ArrowUpDown className={cn("h-3 w-3", sortBy.includes('cgpa') ? "text-primary opacity-100" : "opacity-30")} />
+                            </div>
+                          </TableHead>
+
                           <TableHead className="h-9 w-10 md:w-16 px-1"></TableHead>
                         </TableRow>
                       </TableHeader>
